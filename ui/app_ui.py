@@ -9,7 +9,7 @@ from version_info import APP_VERSION
 
 from core import state
 from core.constants import *
-from osc import client as osc_client
+from osc import client as osc_client 
 from setlist import manager as setlist_manager
 
 def main(page: ft.Page):
@@ -144,6 +144,7 @@ def main(page: ft.Page):
     )
 
     # --- SETLIST MANAGEMENT ---
+
     def save_setlist_dialog(e):
         print(f"\n[UI] Abriendo diálogo de guardar setlist...")
         print(f"[UI] Locators disponibles para guardar: {len(state.locators)}")
@@ -153,11 +154,18 @@ def main(page: ft.Page):
             update_status("⚠️ Sin locators. Presiona SCAN primero", get_color("button_stop"))
             return
 
+        name_field = ft.TextField(
+            label="Nombre del setlist",
+            width=350,
+            autofocus=True,
+            hint_text="Ej: Concierto 2024",
+        )
+
+        error_text = ft.Text("", size=12, color=ft.Colors.RED_400, visible=False)
+
         def close_dlg(e):
             print(f"[UI] Cerrando diálogo de guardar")
-            if page.dialog:
-                page.dialog.open = False
-                page.dialog = None
+            dlg.open = False
             page.update()
 
         def do_save(e):
@@ -187,16 +195,6 @@ def main(page: ft.Page):
                 error_text.visible = True
                 page.update()
 
-        name_field = ft.TextField(
-            label="Nombre del setlist",
-            width=350,
-            autofocus=True,
-            hint_text="Ej: Concierto 2024",
-            on_submit=do_save
-        )
-
-        error_text = ft.Text("", size=12, color=ft.Colors.RED_400, visible=False)
-
         dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text("💾 Guardar Setlist"),
@@ -217,21 +215,21 @@ def main(page: ft.Page):
             actions_alignment=ft.MainAxisAlignment.END,
         )
 
-        print(f"[UI] Asignando diálogo a page.dialog...")
-        page.dialog = dlg
-        dlg.open = True
-        print(f"[UI] Llamando a page.update()...")
-        page.update()
-        print(f"[UI] ✓ page.update() ejecutado - Dialog.open={dlg.open}")
+        # SOLUCIÓN: Usar page.open() en lugar de solo asignar
+        print(f"[UI] Abriendo diálogo con page.open()...")
+        page.open(dlg)
+        print(f"[UI] ✓ Diálogo abierto")
+
 
     def load_setlist_dialog(e):
         print(f"\n[UI] Abriendo diálogo de cargar setlist...")
 
+        saved = setlist_manager.list_setlists()
+        print(f"[UI] Setlists encontrados: {saved}")
+
         def close_dlg(e):
             print(f"[UI] Cerrando diálogo de cargar")
-            if page.dialog:
-                page.dialog.open = False
-                page.dialog = None
+            dlg.open = False
             page.update()
 
         def do_load(e):
@@ -247,9 +245,6 @@ def main(page: ft.Page):
                 else:
                     print(f"[USER] ❌ Error cargando setlist")
                     update_status("❌ Error al cargar", get_color("button_stop"))
-
-        saved = setlist_manager.list_setlists()
-        print(f"[UI] Setlists encontrados: {saved}")
 
         if saved:
             dropdown = ft.Dropdown(
@@ -290,12 +285,11 @@ def main(page: ft.Page):
             actions_alignment=ft.MainAxisAlignment.END,
         )
 
-        print(f"[UI] Asignando diálogo a page.dialog...")
-        page.dialog = dlg
-        dlg.open = True
-        print(f"[UI] Llamando a page.update()...")
-        page.update()
-        print(f"[UI] ✓ page.update() ejecutado - Dialog.open={dlg.open}")
+        # SOLUCIÓN: Usar page.open() en lugar de solo asignar
+        print(f"[UI] Abriendo diálogo con page.open()...")
+        page.open(dlg)
+        print(f"[UI] ✓ Diálogo abierto")
+
 
     def update_setlist_counter():
         count = len(setlist_manager.list_setlists())
@@ -317,7 +311,6 @@ def main(page: ft.Page):
         icon_size=22,
         icon_color=get_color("accent")
     )
-
     # --- LISTBOX ---
     listbox_items = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -356,32 +349,108 @@ def main(page: ft.Page):
                     update_status(f"Arrastrando: {state.locators[index]['name']}", get_color("button_scan"))
                 return handler
 
+            # Construcción del item del listbox
             drag_target = ft.DragTarget(
                 group="locators",
                 content=ft.Container(
                     content=ft.Row(
                         controls=[
-                            ft.Icon(ft.Icons.DRAG_INDICATOR, size=20, color=get_color("text_secondary")),
-                            ft.Text(f"{locator['name']}", size=18, weight=ft.FontWeight.W_600, expand=True,
-                                   text_align=ft.TextAlign.CENTER,
-                                   color=get_color("select_fg") if is_selected else get_color("text_primary")),
+                            # Acento lateral
+                            ft.Container(
+                                width=4,
+                                height=45,
+                                border_radius=2,
+                                bgcolor=get_color("accent") if is_selected else ft.Colors.TRANSPARENT,
+                                animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+                            ),
+                            ft.Container(width=12),
+                            # Badge numerado
+                            ft.Container(
+                                content=ft.Text(
+                                    str(i+1),
+                                    size=13,
+                                    weight=ft.FontWeight.BOLD,
+                                    color=get_color("accent") if is_selected else get_color("text_secondary")
+                                ),
+                                width=32,
+                                height=32,
+                                border_radius=16,
+                                border=ft.border.all(2, get_color("accent") if is_selected else get_color("text_secondary")),
+                                alignment=ft.alignment.center,
+                                bgcolor=ft.Colors.TRANSPARENT,
+                            ),
+                            ft.Container(width=12),
+                            # Contenido
+                            ft.Column(
+                                expand=True,
+                                spacing=2,
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text(
+                                        locator['name'],
+                                        size=15,
+                                        weight=ft.FontWeight.W_600,
+                                        color=get_color("select_fg") if is_selected else get_color("text_primary")
+                                    ),
+                                    ft.Text(
+                                        "● Ready to play",
+                                        size=10,
+                                        color=get_color("accent"),
+                                        opacity=0.8,
+                                        visible=is_selected
+                                    ),
+                                ],
+                            ),
+                            # Icono
+                            ft.Icon(
+                                ft.Icons.CHEVRON_RIGHT if is_selected else ft.Icons.DRAG_INDICATOR,
+                                size=20,
+                                color=get_color("accent") if is_selected else get_color("text_secondary"),
+                                opacity=1 if is_selected else 0.4
+                            ),
                         ],
-                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=0,
                     ),
-                    padding=18, border_radius=10,
+                    padding=ft.padding.only(left=0, right=16, top=10, bottom=10),
+                    border_radius=12,
                     bgcolor=get_color("select_bg") if is_selected else get_color("bg_card"),
-                    border=ft.border.all(2, get_color("accent") if is_selected else ft.Colors.TRANSPARENT),
+                    animate=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
                 ),
                 on_accept=make_drag_accept(i),
             )
 
             draggable = ft.Draggable(
-                group="locators", content=drag_target,
+                group="locators",
+                content=drag_target,
                 content_feedback=ft.Container(
-                    content=ft.Text(locator['name'], size=16, weight=ft.FontWeight.W_600,
-                                   color=get_color("select_fg"), text_align=ft.TextAlign.CENTER),
-                    width=200, height=50, bgcolor=get_color("accent"), border_radius=10,
-                    opacity=0.95, alignment=ft.alignment.center,
+                    content=ft.Row(
+                        controls=[
+                            ft.Container(
+                                width=4,
+                                height=40,
+                                border_radius=2,
+                                bgcolor=get_color("button_text"),
+                            ),
+                            ft.Text(
+                                f"{i+1}",
+                                size=13,
+                                weight=ft.FontWeight.BOLD,
+                                color=get_color("button_text")
+                            ),
+                            ft.Text(
+                                locator['name'],
+                                size=15,
+                                weight=ft.FontWeight.W_600,
+                                color=get_color("button_text")
+                            ),
+                        ],
+                        spacing=12,
+                    ),
+                    padding=ft.padding.symmetric(horizontal=16, vertical=12),
+                    width=340,
+                    bgcolor=get_color("accent"),
+                    border_radius=12,
+                    opacity=0.92,
                 ),
                 on_drag_start=make_drag_start(i),
             )
@@ -586,6 +655,7 @@ def main(page: ft.Page):
             content=ft.Column(
                 spacing=10,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                alignment=ft.MainAxisAlignment.CENTER,  # ← ESTO CENTRA VERTICALMENTE
                 controls=[
                     play_btn,
                     stop_btn,
