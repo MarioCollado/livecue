@@ -11,3 +11,10 @@ is_playing = False
 
 # referencia a la page/UI (se asigna desde ui.app_ui)
 page_ref = None
+
+# --- NUEVA ESTRUCTURA ---
+tracks = []  # Lista jerárquica: cada track contiene secciones
+
+# Índices para navegación
+current_index_track = -1  # track seleccionado
+current_index_locator = -1  # locator seleccionado

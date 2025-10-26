@@ -11,13 +11,15 @@ def create_server():
     # Mapear mensajes OSC
     dispatcher.map("/live/song/get/cue_points", handlers.cue_handler)
     dispatcher.map("/live/song/get/metronome", handlers.metronome_state_handler)
-    dispatcher.map("/live/song/set/metronome", handlers.metronome_state_handler)
     dispatcher.map("/live/song/get/beat", handlers.beat_handler)
     dispatcher.map("/live/song/get/current_song_time", handlers.song_time_handler)
     dispatcher.map("/live/song/get/playing_status", handlers.playing_status_handler)
     dispatcher.map("/live/song/get/tempo", handlers.tempo_handler)
     dispatcher.map("/live/song/get/time_signature", handlers.time_signature_handler)
     dispatcher.set_default_handler(handlers.catch_all_handler)
+
+    dispatcher.map("/live/track/get/arrangement_clips/name", handlers.handle_track_arrangement_clips_name)
+    dispatcher.map("/live/track/get/arrangement_clips/start_time", handlers.handle_track_arrangement_clips_start_time)
 
     server = ThreadingOSCUDPServer(("0.0.0.0", CLIENT_LISTEN_PORT), dispatcher)
     return server

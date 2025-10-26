@@ -14,8 +14,6 @@ def save_setlist(name, locator_list):
         print(f"\n{'='*50}")
         print(f"[DEBUG SAVE] Iniciando guardado de setlist")
         print(f"[DEBUG SAVE] Nombre: '{name}'")
-        print(f"[DEBUG SAVE] Directorio: {SETLISTS_DIR}")
-        print(f"[DEBUG SAVE] Existe directorio: {SETLISTS_DIR.exists()}")
         print(f"[DEBUG SAVE] Número de locators: {len(locator_list)}")
         
         if not locator_list:
@@ -24,15 +22,23 @@ def save_setlist(name, locator_list):
         
         safe_name = utils.sanitize_filename(name)
         filepath = SETLISTS_DIR / f"{safe_name}.json"
-        print(f"[DEBUG SAVE] Ruta completa: {filepath}")
         
+        # ← IMPORTANTE: Guardar TODOS los datos del locator, incluyendo original_id
         data = {
             "name": name,
-            "locators": [{"id": loc["id"], "name": loc["name"], "beat": loc["beat"]} for loc in locator_list],
+            "locators": [
+                {
+                    "id": loc.get("id"), 
+                    "original_id": loc.get("original_id", loc.get("id")),  # ← Guardar original_id
+                    "name": loc["name"], 
+                    "beat": loc["beat"]
+                } 
+                for loc in locator_list
+            ],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
         
-        print(f"[DEBUG SAVE] Datos a guardar: {utils.pretty_json(data)}")
+        print(f"[DEBUG SAVE] Ejemplo de locator guardado: {data['locators'][0] if data['locators'] else 'N/A'}")
         
         SETLISTS_DIR.mkdir(parents=True, exist_ok=True)
         
@@ -41,25 +47,17 @@ def save_setlist(name, locator_list):
         
         if filepath.exists():
             size = filepath.stat().st_size
-            print(f"[DEBUG SAVE] ✅ Archivo guardado exitosamente")
-            print(f"[DEBUG SAVE] Tamaño: {size} bytes")
-            print(f"[DEBUG SAVE] Ruta: {filepath}")
-            
-            with open(filepath, "r", encoding="utf-8") as f:
-                test_load = json.load(f)
-                print(f"[DEBUG SAVE] ✅ Verificación de lectura OK: {len(test_load.get('locators', []))} locators")
-            
+            print(f"[DEBUG SAVE] ✅ Archivo guardado exitosamente ({size} bytes)")
             print(f"{'='*50}\n")
             return True
         else:
             print(f"[DEBUG SAVE] ❌ El archivo no existe después de guardarlo")
-            print(f"{'='*50}\n")
             return False
             
     except Exception as e:
         print(f"[DEBUG SAVE] ❌ ERROR CRÍTICO: {e}")
-        utils.log_exc("DEBUG SAVE")
-        print(f"{'='*50}\n")
+        import traceback
+        traceback.print_exc()
         return False
 
 def load_setlist(name):
