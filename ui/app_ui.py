@@ -14,9 +14,8 @@ from osc.client import send_message
 from setlist import manager as setlist_manager
 
 def main(page: ft.Page):
-    # enlazar referencia a page en state
     state.page_ref = page
-
+    
     page.title = "Ableton Cuelist Controller"
     page.window.width = 900
     page.window.height = 800
@@ -29,21 +28,7 @@ def main(page: ft.Page):
 
     drag_state = {"dragging_index": None}
     beat_polling_active = {"value": True}
-
-    def beat_poller():
-        print("[POLLING] Iniciando beat poller...")
-        while beat_polling_active["value"]:
-            try:
-                if state.is_playing:
-                    osc_client.send_message("/live/song/get/beat", [])
-                    osc_client.send_message("/live/song/get/current_song_time", [])
-                    osc_client.send_message("/live/song/get/playing_status", [])
-                time.sleep(0.08)
-            except Exception as e:
-                print(f"[POLLING ERROR] {e}")
-                time.sleep(1)
-
-    threading.Thread(target=beat_poller, daemon=True).start()
+    track_progress_bars = {}  # Diccionario global para las barras de progreso
 
     def get_color(key):
         return color_schemes[current_theme][key]
@@ -71,56 +56,176 @@ def main(page: ft.Page):
     )
 
     # --- PULSO VISUAL ---
+# ============================================
+    # INDICADOR DE BEAT ESTILO ABLETON
+    # REEMPLAZA toda la sección "# --- PULSO VISUAL ---"
+    # ============================================
+    
+    # Crear los dos círculos del metrónomo
+    beat_circle_1 = ft.Container(
+        width=30,
+        height=30,
+        border_radius=9,
+        bgcolor=get_color("text_secondary"),
+        opacity=0.3,
+    )
+    
+    beat_circle_2 = ft.Container(
+        width=30,
+        height=30,
+        border_radius=9,
+        bgcolor=get_color("text_secondary"),
+        opacity=0.3,
+    )
+    
+    # Contenedor de los círculos
+    beat_indicators_row = ft.Row(
+        spacing=16,
+        alignment=ft.MainAxisAlignment.CENTER,
+        controls=[beat_circle_1, beat_circle_2]
+    )
+    
+    # Contenedor principal del metrónomo
     beat_indicator = ft.Container(
-        width=55,
-        height=55,
-        border_radius=27,
+        width=100,
+        height=60,
+        border_radius=12,
         bgcolor=get_color("bg_card"),
         alignment=ft.alignment.center,
-        content=ft.Icon(
-            ft.Icons.CIRCLE,
-            size=20,
-            color=get_color("text_secondary"),
-        ),
-        animate=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
+        content=beat_indicators_row,
+        padding=ft.padding.only(left=12, right=18, top=12, bottom=12),
     )
-
+   
     tempo_display = ft.Text(
-        f"{state.current_tempo} BPM | {state.time_signature_num}/4", 
-        size=13, 
-        weight=ft.FontWeight.W_600, 
+        f"{state.current_tempo} BPM | {state.time_signature_num}/4",
+        size=13,
+        weight=ft.FontWeight.W_600,
         color=get_color("text_primary")
     )
-
+    
+    # Estado del pulso
+    pulse_state = {
+        "current_beat": 0,
+        "last_beat_time": 0
+    }
+    
     def trigger_pulse(beat):
+        """Pulso visual estilo Ableton - alternar entre dos círculos"""
         try:
-            # Activar pulso en CUALQUIER beat, no solo el 1
-            beat_indicator.bgcolor = get_color("pulse_color")
-            beat_indicator.scale = 1.15
+            import time
+            current_time = time.time()
+            
+            # Evitar pulsos duplicados muy rápidos (menos de 50ms)
+            if current_time - pulse_state["last_beat_time"] < 0.05:
+                return
+            
+            pulse_state["last_beat_time"] = current_time
+            pulse_state["current_beat"] = beat
+            
+            # print(f"[PULSE] Beat {beat}")
+            
+            # Determinar qué círculo debe estar activo
+            # Beat 1 y 3 = círculo izquierdo (1)
+            # Beat 2 y 4 = círculo derecho (2)
+            is_strong_beat = (beat == 1) or (beat % state.time_signature_num == 1)
+            is_left_beat = (beat % 2 == 1)  # Beats impares = izquierda
+            
+            if is_left_beat:
+                # Activar círculo izquierdo
+                beat_circle_2.bgcolor = get_color("progress_bar_bg")
+                beat_circle_2.opacity = 1.0
+                beat_circle_1.bgcolor = get_color("text_secondary")
+                beat_circle_1.opacity = 0.3
+            else:
+                # Activar círculo derecho
+                beat_circle_2.bgcolor = get_color("text_secondary")
+                beat_circle_2.opacity = 0.3
+                beat_circle_1.bgcolor = get_color("progress_bar_bg")
+                beat_circle_1.opacity = 1.0
+            
+            # Si es el beat 1 (downbeat), hacer más brillante
+            if is_strong_beat:
+                if is_left_beat:
+                    beat_circle_1.bgcolor = get_color("progress_bar_bg")
+                else:
+                    beat_circle_2.bgcolor = get_color("progress_bar_bg")
+            
+            # Actualizar UI
             page.update()
             
-            # Después de 80ms, volver al estado normal
-            def reset_pulse():
-                time.sleep(0.08)
-                beat_indicator.bgcolor = get_color("bg_card")
-                beat_indicator.scale = 1.0
-                page.update()
+            # Reset gradual después de un tiempo
+            def fade_out():
+                time.sleep(0.15)
+                try:
+                    # Fade out gradual
+                    if is_left_beat:
+                        beat_circle_2.opacity = 0.6
+                    else:
+                        beat_circle_1.opacity = 0.6
+                    page.update()
+                    
+                    time.sleep(0.1)
+                    if is_left_beat:
+                        beat_circle_2.opacity = 0.3
+                        beat_circle_2.bgcolor = get_color("text_secondary")
+                    else:
+                        beat_circle_1.opacity = 0.3
+                        beat_circle_1.bgcolor = get_color("text_secondary")
+                    page.update()
+                except:
+                    pass
             
-            threading.Thread(target=reset_pulse, daemon=True).start()
+            threading.Thread(target=fade_out, daemon=True).start()
             
         except Exception as e:
-            print(f"[UI ERROR] Error en trigger_pulse: {e}")
-            
+            print(f"[PULSE ERROR] {e}")
+            import traceback
+            traceback.print_exc()
+
     def update_tempo_display():
         try:
             tempo_display.value = f"{state.current_tempo:.0f} BPM | {state.time_signature_num}/4"
             page.update()
         except Exception as e:
-            print(f"Error actualizando tempo: {e}")
-
+            print(f"[ERROR] update_tempo_display: {e}")
+        
+    last_update = {"time": 0}
+    
+    def update_track_progress(current_beat):
+        try:
+            now = time.time()
+            if now - last_update["time"] < 0.1:
+                return
+            last_update["time"] = now
+            
+            if 0 <= state.current_index < len(state.tracks):
+                track = state.tracks[state.current_index]
+                progress_bar = track_progress_bars.get(state.current_index)
+                
+                if progress_bar and "start" in track and "end" in track:
+                    start = track["start"]
+                    end = track["end"]
+                    duration = end - start
+                    if duration > 0:
+                        progress = max(0, min(1, (current_beat - start) / duration))
+                        base_width = 610 * 2
+                        progress_bar.width = int(progress * base_width)
+                        
+                        # IMPORTANTE: usar update() solo si está en la página
+                        try:
+                            progress_bar.update()
+                        except Exception:
+                            # Si falla, intentar page.update() general
+                            pass
+        except Exception as e:
+            # Silenciar este error específico
+            if "must be added to the page first" not in str(e):
+                print(f"[ERROR] update_track_progress: {e}")
+                    
     page.trigger_pulse = trigger_pulse
     page.update_tempo_display = update_tempo_display
-
+    page.update_track_progress = update_track_progress
+    
     # --- METRONOME ---
     def toggle_metronome(e):
         state.metronome_on = not state.metronome_on
@@ -152,6 +257,7 @@ def main(page: ft.Page):
     )
 
     # --- SETLIST MANAGEMENT ---
+
     def save_setlist_dialog(e):
         print(f"\n[UI] Abriendo diálogo de guardar setlist...")
         if not state.locators:
@@ -183,10 +289,16 @@ def main(page: ft.Page):
                 return
 
             locators_to_save = sorted(state.locators, key=lambda x: x["beat"])
-            success = setlist_manager.save_setlist(name, locators_to_save)
+            
+            # GUARDAR TAMBIÉN LOS TRACKS CON SECTIONS
+            success = setlist_manager.save_setlist(name, locators_to_save, state.tracks)
 
             if success:
-                update_status(f"✓ '{name}' guardado ({len(locators_to_save)} locators)", get_color("button_play"))
+                sections_count = sum(len(t.get("sections", [])) for t in state.tracks)
+                update_status(
+                    f"✓ '{name}' guardado ({len(locators_to_save)} locators, {len(state.tracks)} tracks, {sections_count} sections)", 
+                    get_color("button_play")
+                )
                 close_dlg(None)
                 update_setlist_counter()
             else:
@@ -204,7 +316,12 @@ def main(page: ft.Page):
                 spacing=10,
                 controls=[
                     name_field,
-                    ft.Text(f"Se guardarán {len(state.locators)} locators", size=12, italic=True, color=get_color("text_secondary")),
+                    ft.Text(
+                        f"Se guardarán {len(state.locators)} locators y {len(state.tracks)} tracks", 
+                        size=12, 
+                        italic=True, 
+                        color=get_color("text_secondary")
+                    ),
                     error_text
                 ]
             ),
@@ -227,17 +344,69 @@ def main(page: ft.Page):
             if dropdown.value:
                 data = setlist_manager.load_setlist(dropdown.value)
                 if data and "locators" in data:
-                    state.locators = sorted(data["locators"], key=lambda x: x["beat"])
-                    # Forzar re-parsing desde handlers
-                    from osc.handlers import cue_handler
-                    # Convertir de nuevo a formato args
-                    args = []
-                    for loc in state.locators:
-                        args.append(loc["name"])
-                        args.append(loc["beat"])
-                    cue_handler("/live/song/get/cue_points", *args)
+                    # Recrear locators preservando original_id
+                    state.locators = []
+                    for loc in data["locators"]:
+                        state.locators.append({
+                            "id": loc.get("id"),
+                            "original_id": loc.get("original_id", loc.get("id")),
+                            "name": loc["name"],
+                            "beat": loc["beat"]
+                        })
+                    
+                    state.locators.sort(key=lambda x: x["beat"])
+                    
+                    # CARGAR TRACKS CON SECTIONS SI EXISTEN
+                    if "tracks" in data:
+                        state.tracks = []
+                        for track_data in data["tracks"]:
+                            track = {
+                                "title": track_data["title"],
+                                "start": track_data["start"],
+                                "end": track_data["end"],
+                                "start_locator_id": track_data.get("start_locator_id"),
+                                "track_number": track_data["track_number"],
+                                "sections": [
+                                    {
+                                        "name": sec["name"],
+                                        "beat": sec["beat"],
+                                        "time": sec.get("time", sec["beat"]),
+                                        "relative_beat": sec.get("relative_beat", 0)
+                                    }
+                                    for sec in track_data.get("sections", [])
+                                ],
+                                "expanded": False
+                            }
+                            state.tracks.append(track)
+                        
+                        total_sections = sum(len(t["sections"]) for t in state.tracks)
+                        print(f"[LOAD] ✅ Cargados {len(state.tracks)} tracks con {total_sections} sections")
+                    else:
+                        # Fallback: re-parsear si no hay tracks guardados
+                        from osc.handlers import cue_handler
+                        args = []
+                        for loc in state.locators:
+                            args.append(loc["name"])
+                            args.append(loc["beat"])
+                        cue_handler("/live/song/get/cue_points", *args)
+                    
+                    # Resetear índice
+                    if state.tracks:
+                        state.current_index = 0
+                    else:
+                        state.current_index = -1
+                    
                     update_listbox()
-                    update_status(f"✓ '{data['name']}' cargado ({len(state.locators)} locators)", get_color("button_play"))
+                    
+                    sections_info = ""
+                    if "tracks" in data:
+                        total_sections = sum(len(t.get("sections", [])) for t in state.tracks)
+                        sections_info = f", {total_sections} sections"
+                    
+                    update_status(
+                        f"✓ '{data['name']}' cargado ({len(state.locators)} locators, {len(state.tracks)} tracks{sections_info})", 
+                        get_color("button_play")
+                    )
                     close_dlg(None)
                 else:
                     update_status("❌ Error al cargar", get_color("button_stop"))
@@ -300,6 +469,7 @@ def main(page: ft.Page):
 
     def update_listbox():
         listbox_items.controls.clear()
+        track_progress_bars.clear()  # Limpiar barras anteriores
 
         for track_index, track in enumerate(state.tracks):
             is_selected = track_index == state.current_index
@@ -340,7 +510,47 @@ def main(page: ft.Page):
                 def handler(e):
                     drag_state["dragging_index"] = index
                 return handler
+            
 
+            # Crear barra de progreso activa
+            progress_bar = ft.Container(
+                width=0,
+                height=6,
+                bgcolor=get_color("progress_bar_bg"),  # Color del progreso
+                border_radius=3,
+                animate=ft.Animation(100, ft.AnimationCurve.LINEAR),
+            )
+            
+            # Guardar referencia ANTES de crear el contenedor
+            track_progress_bars[track_index] = progress_bar
+
+            # Crear contenedor de fondo para la barra
+            progress_bg = ft.Container(
+                width=610 * 2,  # Ancho total
+                height=6,
+                border_radius=3,
+                bgcolor=get_color("bg_main"),  # Fondo de la barra
+                padding=0,
+                content=ft.Stack(
+                    controls=[progress_bar],
+                    width=610 * 2,
+                    height=6,
+                )
+            )
+            
+            # Contenedor que envuelve la barra (solo visible si está seleccionado)
+            progress_container = ft.Container(
+                content=progress_bg,
+                visible=is_selected,
+                margin=ft.margin.only(top=6),
+                padding=0,
+            )
+            
+            # DEBUG: Imprimir cuando se crea la barra
+            if is_selected:
+                print(f"[LISTBOX] ✓ Barra de progreso creada para track {track_index}: {track['title']}")
+                
+                            
             header = ft.Container(
                 content=ft.Column(
                     spacing=0,
@@ -385,11 +595,14 @@ def main(page: ft.Page):
                             ],
                             spacing=0,
                         ),
+                        # Barra de progreso con contenedor
+                        progress_container,
+                        # Línea de selección
                         ft.Container(
                             width=None,
                             height=2,
                             bgcolor=get_color("accent"),
-                            margin=ft.margin.only(top=8),
+                            margin=ft.margin.only(top=4),
                             visible=is_selected,
                             animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
                         ),
@@ -408,7 +621,6 @@ def main(page: ft.Page):
                     def make_section_click(t_idx, s_idx):
                         def handler(e):
                             section = state.tracks[t_idx]["sections"][s_idx]
-                            # Saltar a esa sección
                             osc_client.send_message("/live/song/stop_playing", [])
                             time.sleep(0.05)
                             osc_client.send_message("/live/song/set/current_song_time", [section['beat']])
@@ -427,15 +639,13 @@ def main(page: ft.Page):
                                     ft.Container(width=12),
                                     ft.Icon(ft.Icons.LABEL_OUTLINE, size=16, color=get_color("accent"), opacity=0.7),
                                     ft.Text(sec["name"], size=14, weight=ft.FontWeight.W_500, expand=True, color=get_color("text_primary")),
-                                    ft.Text(f"+{sec.get('relative_beat', 0):.0f}", size=11, color=get_color("text_secondary"), opacity=0.7),
-                                    ft.Icon(ft.Icons.PLAY_CIRCLE_OUTLINE, size=18, color=get_color("accent"), opacity=0.6),
                                     ft.Container(width=12),
                                 ],
                                 spacing=8,
                             ),
                             padding=ft.padding.symmetric(horizontal=0, vertical=8),
                             border_radius=8,
-                            bgcolor=get_color("bg_main"),
+                            bgcolor=get_color("bg_secondary"),
                             on_click=make_section_click(track_index, sec_idx),
                             animate=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
                         )
@@ -482,36 +692,42 @@ def main(page: ft.Page):
         send_message(f"/live/track/get/arrangement_clips/name", [sections_track_index])
         send_message(f"/live/track/get/arrangement_clips/start_time", [sections_track_index])
 
+
+# REEMPLAZA la función scan_locators() en app_ui.py
+
     def scan_locators(e):
         print(f"\n[USER] Escaneando locators y estructura...")
         update_status("Escaneando...", get_color("button_scan"))
         
+        # Solicitar cue points y clips
         osc_client.send_message("/live/song/get/cue_points", [])
         time.sleep(0.2)
 
         scan_midi_sections(0)
 
+        # Solicitar datos de estado (SOLO los comandos que funcionan)
+        print("[OSC] Solicitando datos de Ableton...")
         osc_client.send_message("/live/song/get/metronome", [])
         osc_client.send_message("/live/song/get/tempo", [])
         osc_client.send_message("/live/song/get/time_signature", [])
-        osc_client.send_message("/live/song/get/playing_status", [])
+        
+        # CONFIGURAR LISTENERS para current_song_time
+        # Esto hace que Ableton envíe automáticamente el song_time cada vez que cambia
+        print("[OSC] Configurando listeners...")
+        osc_client.send_message("/live/song/start_listen/current_song_time", [])
+        osc_client.send_message("/live/song/start_listen/is_playing", [])
+        
         update_setlist_counter()
         
         if state.tracks:
             state.current_index = 0
         else:
             state.current_index = -1
-        
+
     def jump_and_play_track(index_track):
         if 0 <= index_track < len(state.tracks):
             track = state.tracks[index_track]
             locator_id = track.get("start_locator_id")
-            
-            # ← AGREGAR ESTAS LÍNEAS DE DEBUG
-            print(f"[DEBUG PLAY] Intentando reproducir track index={index_track}")
-            print(f"[DEBUG PLAY] Track: '{track['title']}'")
-            print(f"[DEBUG PLAY] Start beat: {track.get('start')}")
-            print(f"[DEBUG PLAY] Locator ID guardado: {locator_id}")
             
             if locator_id is None:
                 print(f"[USER] ⚠️ Track sin locator ID: {track['title']}")
@@ -520,22 +736,35 @@ def main(page: ft.Page):
 
             print(f"[USER] Jump & Play → Locator {locator_id}: {track['title']}")
 
+            # PASO 1: Stop
             osc_client.send_message("/live/song/stop_playing", [])
             time.sleep(0.1)
+            
+            # PASO 2: Jump
             osc_client.send_message("/live/song/cue_point/jump", [locator_id])
             time.sleep(0.1)
+            
+            # PASO 3: Play
             osc_client.send_message("/live/song/start_playing", [])
+            
+            # PASO 4: Actualizar estado LOCAL (importante!)
             state.is_playing = True
+            print(f"[USER] ✓ state.is_playing = {state.is_playing}")
+            
             update_status(f"▶ Play: {track['title']}", get_color("button_play"))
                         
     def play_selected(e):
+        print(f"\n[USER] ========== PLAY SELECTED ==========")
+        print(f"[USER] current_index: {state.current_index}")
+        print(f"[USER] total tracks: {len(state.tracks)}")
+        
         if state.current_index < 0 or state.current_index >= len(state.tracks):
             update_status("Sin track seleccionado", get_color("button_stop"))
             return
         
-        # Si ya está reproduciendo, hacer stop completo
         if state.is_playing:
-            stop_play(None)  # Llamar a la función stop completa
+            print(f"[USER] Ya estaba playing, haciendo stop primero...")
+            stop_play(None)
             time.sleep(0.15)
         
         play_btn.scale = 1.1
@@ -543,12 +772,27 @@ def main(page: ft.Page):
         time.sleep(0.1)
         play_btn.scale = 1.0
         page.update()
+        
+        print(f"[USER] Llamando a jump_and_play_track({state.current_index})...")
         jump_and_play_track(state.current_index)
         
+        # ASEGURAR que el listener esté activo
+        print(f"[USER] Activando listener de song_time...")
+        osc_client.send_message("/live/song/start_listen/current_song_time", [])
+        
+        print(f"[USER] Después de play: state.is_playing = {state.is_playing}")
+        print(f"[USER] ====================================\n")
+
     def stop_play(e):
         print(f"\n[USER] Stop")
         osc_client.send_message("/live/song/stop_playing", [])
         state.is_playing = False
+        print(f"[USER] ✓ state.is_playing = {state.is_playing}")
+        
+        # Resetear barra de progreso
+        if state.current_index in track_progress_bars:
+            track_progress_bars[state.current_index].width = 0
+            page.update()
         update_status("■ Stop", get_color("button_stop"))
 
     def next_track(e):
@@ -585,7 +829,7 @@ def main(page: ft.Page):
         for btn, key in [(scan_btn, "button_scan"), (play_btn, "button_play"), (stop_btn, "button_stop"), (prev_btn, "button_nav"), (next_btn, "button_nav")]:
             btn.style = ft.ButtonStyle(color=get_color("button_text"), bgcolor=get_color(key), padding=22)
         header_container.bgcolor = get_color("bg_secondary")
-        listbox_container.bgcolor = get_color("bg_secondary")
+        listbox_container.bgcolor = get_color("bg_main")
         beat_indicator.bgcolor = get_color("bg_card")
         tempo_display.color = get_color("text_primary")
         update_listbox()
@@ -612,9 +856,9 @@ def main(page: ft.Page):
 
     controls_column.spacing = 12
     controls_column.controls = [
-        ft.Container(content=ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10, controls=[metro_button, tempo_display, beat_indicator, status_text]), bgcolor=get_color("bg_secondary"), border_radius=12, padding=ft.padding.all(20)),
+        ft.Container(content=ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10, controls=[metro_button, tempo_display, beat_indicator, status_text]), bgcolor=get_color("bg_main"), border_radius=12, padding=ft.padding.all(20)),
         ft.Divider(thickness=1, color=get_color("text_secondary"), height=8),
-        ft.Container(content=ft.Column(spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, controls=[play_btn, stop_btn, ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[prev_btn, next_btn]), scan_btn]), bgcolor=get_color("bg_secondary"), border_radius=12, padding=ft.padding.all(20), expand=True),
+        ft.Container(content=ft.Column(spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, controls=[play_btn, stop_btn, ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[prev_btn, next_btn]), scan_btn]), bgcolor=get_color("bg_main"), border_radius=12, padding=ft.padding.all(20), expand=True),
     ]
 
     main_row.spacing = 20
@@ -623,8 +867,28 @@ def main(page: ft.Page):
 
     page.add(ft.Container(expand=True, content=ft.Column(spacing=0, controls=[header_container, ft.Container(expand=True, padding=ft.padding.only(left=20, right=20, bottom=20, top=10), content=main_row)])))
 
+    # ============================================
+    # Modificar stop_play para resetear progreso
+    # ============================================
+    
+    original_stop_play = stop_play
+    
+    def stop_play(e):
+        original_stop_play(e)
+        
+        # Resetear barra de progreso
+        if 0 <= state.current_index < len(state.tracks):
+            progress_bar = track_progress_bars.get(state.current_index)
+            if progress_bar:
+                progress_bar.width = 0
+                try:
+                    page.update()
+                except:
+                    pass
+
     apply_colors()
     update_setlist_counter()
+
 
     print("\n[INIT] Iniciando escaneo inicial...")
     time.sleep(1)

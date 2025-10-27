@@ -1,9 +1,25 @@
 # osc/handlers.py
 from core import state
 from core import utils
-from setlist import manager as setlist_manager  # por si queremos extender
+from setlist import manager as setlist_manager
 from osc.client import send_message
 import time
+
+def toggle_metronome(from_locator_name: str):
+    """Activa o desactiva el metrónomo según el nombre del locator."""
+    name = from_locator_name.strip().upper()
+    if "CLICK ON" in name:
+        state.metronome_on = True
+        print("[LOCATOR] 🔊 CLICK ON — metrónomo activado")
+        send_message("/live/metronome", 1)
+    elif "CLICK OFF" in name:
+        state.metronome_on = False
+        print("[LOCATOR] 🔇 CLICK OFF — metrónomo desactivado")
+        send_message("/live/metronome", 0)
+
+    # Actualizar UI si existe
+    if state.page_ref and hasattr(state.page_ref, "update_metronome_ui"):
+        state.page_ref.update_metronome_ui()
 
 def cue_handler(address, *args):
     print(f"\n[OSC] ✓ Cue points recibidos: {len(args)//2} locators")
@@ -12,26 +28,29 @@ def cue_handler(address, *args):
         try:
             name = args[i].strip()
             beat = args[i + 1]
-            # Guardar el índice ORIGINAL que viene de Ableton
-            raw_locators.append({"original_id": i // 2, "name": name, "beat": beat})
+            is_click_toggle = name.upper() in ["CLICK ON", "CLICK OFF"]
+            raw_locators.append({
+                "original_id": i // 2,
+                "name": name,
+                "beat": beat,
+                "is_click_toggle": is_click_toggle
+            })
         except Exception as e:
             print(f"Error procesando locator: {e}")
 
-    # ORDENAR por beat
+    # Ordenar por beat
     raw_locators.sort(key=lambda x: x["beat"])
 
-    # Asignar IDs secuenciales DESPUÉS de ordenar
     for i, loc in enumerate(raw_locators):
         loc["id"] = i
 
-    # Guardar en state.locators
     state.locators = raw_locators
 
     print(f"[DEBUG] Primeros 5 locators ordenados:")
     for loc in raw_locators[:5]:
         print(f"  [ID={loc['id']}, OrigID={loc['original_id']}] {loc['name']} @ beat {loc['beat']}")
 
-    # --- PARSING AVANZADO ---
+    # --- Parsing avanzado (tracks, secciones, etc) ---
     state.tracks = []
     current_track = None
     track_number = 0
@@ -55,7 +74,7 @@ def cue_handler(address, *args):
             current_track = {
                 "title": title,
                 "start": loc["beat"],
-                "start_locator_id": loc["original_id"],  # ← USAR EL ID ORIGINAL DE ABLETON
+                "start_locator_id": loc["original_id"],
                 "track_number": track_number,
                 "sections": []
             }
@@ -91,6 +110,7 @@ def cue_handler(address, *args):
     if state.page_ref and hasattr(state.page_ref, 'update_listbox'):
         state.page_ref.update_listbox()
 
+
 def metronome_state_handler(address, *args):
     if not args:
         return
@@ -106,23 +126,40 @@ def beat_handler(address, *args):
         if state.page_ref and hasattr(state.page_ref, "trigger_pulse"):
             state.page_ref.trigger_pulse(state.current_beat)
 
-def song_time_handler(address, *args):
-    """Método 2: Calcular beat desde song_time"""
-    if args:
-        state.current_song_time = float(args[0])
-        beat_in_measure = (state.current_song_time % state.time_signature_num) + 1
-        calculated_beat = int(beat_in_measure)
+def song_time_handler(addr, *args):
+    """Usar el beat enviado por Ableton directamente para el pulso visual"""
 
-        if calculated_beat != state.current_beat:
-            state.current_beat = calculated_beat
-            if state.page_ref and hasattr(state.page_ref, "trigger_pulse"):
-                state.page_ref.trigger_pulse(state.current_beat)
+    if not args:
+        return
 
-def playing_status_handler(address, *args):
-    """Detecta si está reproduciendo"""
+    current_beat = int(args[0])  # Ableton nos da el beat exacto
+    state.current_song_time = args[0]
+
+    # Evitar disparos duplicados
+    if getattr(state, "last_triggered_beat", None) == current_beat:
+        return
+
+    state.last_triggered_beat = current_beat
+
+    # Trigger del pulso visual
+    try:
+        if state.page_ref:
+            state.page_ref.trigger_pulse(current_beat)
+    except Exception as e:
+        print(f"[OSC] Error en trigger_pulse: {e}")
+
+    # Actualizar barra de progreso
+    try:
+        if state.page_ref:
+            state.page_ref.update_track_progress(current_beat)
+    except:
+        pass
+
+def is_playing_handler(address, *args):
+    """Handler alternativo para is_playing"""
     if args:
         state.is_playing = bool(int(args[0]))
-        print(f"[OSC] Playing: {state.is_playing}")
+        print(f"[OSC] is_playing: {state.is_playing}")
 
 def tempo_handler(address, *args):
     """Recibe el tempo actual"""
@@ -141,15 +178,17 @@ def time_signature_handler(address, *args):
             state.page_ref.update_tempo_display()
 
 def catch_all_handler(address, *args):
-    if "/beat" in address.lower() or "/time" in address.lower():
-        print(f"[OSC DEBUG] {address}: {args}")
+    """Handler catch-all - solo errores importantes"""
+    if "/error" in address.lower():
+        # Solo mostrar errores que NO sean de comandos que sabemos que no existen
+        if "get/beat" not in str(args) and "playing_status" not in str(args):
+            print(f"[OSC ERROR] {address}: {args}")
 
 # ==============================
 # HANDLERS DE CLIPS / OSC
 # ==============================
 
-# Estructura global para almacenar datos de clips temporalmente por track
-track_clip_data = {}  # { track_index: { "names": [...], "times": [...] } }
+track_clip_data = {}
 
 def handle_track_arrangement_clips_name(path, *args):
     track_index = args[0]
@@ -170,7 +209,7 @@ def maybe_assign_track_clips(track_index):
     times = data.get("times")
 
     if not names or not times:
-        return  # Esperar a que llegue el otro
+        return
 
     # Limpiar las secciones de todos los tracks antes de asignar
     for track in state.tracks:
@@ -207,64 +246,6 @@ def maybe_assign_track_clips(track_index):
 
     # Limpiar datos temporales
     track_clip_data[track_index] = {}
-
-    # Actualizar UI
-    if hasattr(state, 'page_ref') and state.page_ref:
-        try:
-            state.page_ref.update_listbox()
-        except Exception:
-            pass
-
-def assign_clips_to_tracks_from_arrangement(clip_names, clip_times):
-    """Asigna clips de arrangement a los tracks según su posición temporal"""
-    print(f"\n[STRUCTURE] Asignando {len(clip_names)} clips a tracks...")
-
-    # Limpiar secciones existentes
-    for track in state.tracks:
-        track["sections"] = []
-
-    # Asignar cada clip al track correcto
-    for clip_name, clip_time in zip(clip_names, clip_times):
-        # Saltar clips sin nombre
-        if not clip_name or str(clip_name).strip().lower() == "none":
-            continue
-
-        # Encontrar a qué track pertenece este clip
-        assigned = False
-        for track in state.tracks:
-            # Usar "start" y "end" según tu estructura
-            start = track.get("start", 0)
-            end = track.get("end", float('inf'))
-
-            try:
-                ct = float(clip_time)
-            except Exception:
-                ct = clip_time  # si no convertible, dejar como está
-
-            if isinstance(ct, (int, float)) and start <= ct < end:
-                track["sections"].append({
-                    "name": clip_name,
-                    "beat": ct,
-                    "time": ct,
-                    "relative_beat": ct - start
-                })
-                print(f"[STRUCTURE]   ✓ '{clip_name}' (beat {ct:.1f}) → {track['title']}")
-                assigned = True
-                break
-
-        if not assigned:
-            print(f"[STRUCTURE]   ✗ '{clip_name}' (beat {clip_time}) → No asignado (fuera de rango de tracks)")
-            # Debug: mostrar rangos de tracks
-            for track in state.tracks:
-                print(f"[STRUCTURE]     Track '{track['title']}': beats {track.get('start', 0)} - {track.get('end', '?')}")
-
-    # Ordenar secciones por tiempo
-    for track in state.tracks:
-        track["sections"].sort(key=lambda x: x["beat"])
-        if len(track["sections"]) > 0:
-            print(f"[STRUCTURE] ✓ Track '{track['title']}': {len(track['sections'])} secciones")
-
-    print(f"[STRUCTURE] ✓ Proceso completado\n")
 
     # Actualizar UI
     if hasattr(state, 'page_ref') and state.page_ref:

@@ -1,6 +1,6 @@
 # ---------- PALETAS DE COLORES (MEJORADAS) ----------
 color_schemes = {
-    "Mono Dark": {  # SIN CAMBIOS
+    "Mono Dark": {  
         "bg_main": "#0D0D0D",
         "bg_secondary": "#232323",
         "bg_card": "#343434",
@@ -24,6 +24,7 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#D4AF37",
         "pulse_color_hover": "#B8952A",
+        "progress_bar_bg": "#06C000",
     },
 
     "Bright Pop": {
@@ -50,6 +51,7 @@ color_schemes = {
         "button_text": "#1C1C1C",
         "pulse_color": "#00B8B5",
         "pulse_color_hover": "#009E9C",
+        "progress_bar_bg": "#06C000",
     },
 
     "Stage Night": {
@@ -76,6 +78,7 @@ color_schemes = {
         "button_text": "#000000",
         "pulse_color": "#FFD700",
         "pulse_color_hover": "#D4AF37",
+        "progress_bar_bg": "#06C000",
     },
 
     "Ocean Light": {
@@ -102,6 +105,7 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#0275A8",
         "pulse_color_hover": "#015F87",
+        "progress_bar_bg": "#06C000",
     },
 
     "Forest Calm": {
@@ -128,6 +132,7 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#4FAE9B",
         "pulse_color_hover": "#3E9D89",
+        "progress_bar_bg": "#06C000",
     },
 
     "Abyss Dark": {  # SIN CAMBIOS
@@ -154,6 +159,7 @@ color_schemes = {
         "button_text": "#000000",
         "pulse_color": "#00C48E",
         "pulse_color_hover": "#00AA7A",
+        "progress_bar_bg": "#06C000",
     },
 
     "Midnight Core 2": {
@@ -180,6 +186,7 @@ color_schemes = {
         "button_text": "#0D0D0D",
         "pulse_color": "#56AB91",
         "pulse_color_hover": "#67B99A",
+        "progress_bar_bg": "#06C000",
     },
 
     "Forest Depth": {
@@ -206,6 +213,7 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#2F5454",
         "pulse_color_hover": "#396262",
+        "progress_bar_bg": "#06C000",
     },
 
     "Twilight Teal": {  # SIN CAMBIOS
@@ -232,6 +240,7 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#095B53",
         "pulse_color_hover": "#114047",
+        "progress_bar_bg": "#06C000",
     },
 
     "Deep Space": {
@@ -258,6 +267,7 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#1A7EF2",
         "pulse_color_hover": "#0974F1",
+        "progress_bar_bg": "#06C000"
     },
 
     "Red Awakening": {
@@ -284,5 +294,6 @@ color_schemes = {
         "button_text": "#FFFFFF",
         "pulse_color": "#B33939",
         "pulse_color_hover": "#992F2F",
+        "progress_bar_bg": "#06C000",
     },
 }
