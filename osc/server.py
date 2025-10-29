@@ -1,32 +1,35 @@
 # osc/server.py
-import threading
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer
 from core.constants import CLIENT_LISTEN_PORT
-import osc.handlers as handlers
+from osc.handlers import handlers
 
 def create_server():
+    """Crea y configura el servidor OSC"""
     dispatcher = Dispatcher()
-
-    # Mapear mensajes OSC
-    dispatcher.map("/live/song/get/cue_points", handlers.cue_handler)
-    dispatcher.map("/live/song/get/metronome", handlers.metronome_state_handler)
-    dispatcher.map("/live/song/get/beat", handlers.beat_handler)
     
-    # IMPORTANTE: Los listeners envían datos sin el "get"
-    dispatcher.map("/live/song/get/current_song_time", handlers.song_time_handler)
-    dispatcher.map("/live/song/current_song_time", handlers.song_time_handler)  # Listener
+    # Mapeo de rutas a handlers
+    routes = {
+        "/live/song/get/cue_points": handlers.handle_cue_points,
+        "/live/song/get/metronome": handlers.handle_metronome,
+        "/live/song/get/beat": handlers.handle_song_time,
+        "/live/song/get/current_song_time": handlers.handle_song_time,
+        "/live/song/current_song_time": handlers.handle_song_time,
+        "/live/song/get/tempo": handlers.handle_tempo,
+        "/live/song/get/time_signature": handlers.handle_time_signature,
+        "/live/song/get/is_playing": handlers.handle_playing_status,
+        "/live/song/is_playing": handlers.handle_playing_status,
+        "/live/track/get/arrangement_clips/name": handlers.handle_clip_names,
+        "/live/track/get/arrangement_clips/start_time": handlers.handle_clip_times,
+    }
     
-    dispatcher.map("/live/song/get/tempo", handlers.tempo_handler)
-    dispatcher.map("/live/song/get/time_signature", handlers.time_signature_handler)
+    # Registrar rutas
+    for route, handler in routes.items():
+        dispatcher.map(route, handler)
     
-    dispatcher.map("/live/song/get/is_playing", handlers.is_playing_handler)
-    dispatcher.map("/live/song/is_playing", handlers.is_playing_handler)  # Listener
+    # Handler por defecto para errores
+    dispatcher.set_default_handler(handlers.handle_error)
     
-    dispatcher.set_default_handler(handlers.catch_all_handler)
-    dispatcher.map("/live/track/get/arrangement_clips/name", handlers.handle_track_arrangement_clips_name)
-    dispatcher.map("/live/track/get/arrangement_clips/start_time", handlers.handle_track_arrangement_clips_start_time)
-
     server = ThreadingOSCUDPServer(("0.0.0.0", CLIENT_LISTEN_PORT), dispatcher)
     print(f"[OSC SERVER] ✓ Escuchando en puerto {CLIENT_LISTEN_PORT}")
     return server
