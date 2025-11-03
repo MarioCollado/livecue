@@ -1,52 +1,128 @@
-# ui/app_ui.py - VERSIÓN SIMPLIFICADA Y LIMPIA
+# ui/app_ui.py - INICIO DEL ARCHIVO
 import flet as ft
 import time
+import threading
+import asyncio
 from core.state import state
 from core.playback import playback
 from setlist.manager import manager
 from ui.themes import ThemeManager
-from ui.components import BeatIndicator, TempoDisplay, StatusBar, ProgressBar, MetronomeButton
+from ui.components import BeatIndicator, TempoDisplay, StatusBar, MetronomeButton 
 from ui.header_component import create_header
 from version_info import APP_VERSION
 
-# ============================================
-# CONFIGURACIÓN
-# ============================================
 DEBOUNCE_NAV_MS = 300
 
-class TrackListView:
-    """Vista de lista de tracks simplificada"""
+# ============================================
+# SAFE UI UPDATE - SYNC VERSION
+# ============================================
+def safe_ui_update_sync(page_ref):
+    """Versión SÍNCRONA segura para llamar desde threads OSC u otros hilos"""
+    if not page_ref:
+        return False
+
+    try:
+        if not hasattr(page_ref, 'update'):
+            return False
+
+        # Si el objeto tiene 'window' y está cerrado, no actualizar
+        if hasattr(page_ref, 'window') and page_ref.window is None:
+            return False
+
+        # ⚠️ La clave: forzar ejecución en el hilo principal del UI
+        if hasattr(page_ref, "call_later"):
+            page_ref.call_later(lambda: page_ref.update())
+        else:
+            page_ref.update()
+
+        return True
+
+    except Exception as e:
+        error_msg = str(e)
+        if "__uid" not in error_msg and "update_async" not in error_msg:
+            print(f"[SAFE_UI_UPDATE ERROR] {error_msg}")
+        return False
     
-    def __init__(self, theme: ThemeManager, page):
+# ============================================
+# TRACK LIST VIEW - CORREGIDO
+# ============================================
+class TrackListView:
+    instance = None
+    
+    def __init__(self, theme: ThemeManager, page: ft.Page):
         self.theme = theme
         self.page = page
         self.drag_state = {"dragging_index": None}
         self.column = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
-        
-    def update(self):
-        self.column.controls.clear()
-        state.track_progress_bars.clear()
-        for idx, track in enumerate(state.tracks):
-            self.column.controls.append(self._create_track_item(idx, track))
-        self._safe_update()
+        self._update_lock = threading.Lock()  # CORREGIDO: threading.Lock en lugar de asyncio.Lock
     
+    async def update(self):
+        """Update async con validación completa"""
+        if not self._update_lock.acquire(blocking=False):
+            print("[UI] Update ya en progreso, ignorando...")
+            return
+        try:
+            if not self.page:
+                print("[UI] Page es None")
+                return
+            # Elimina esta comprobación:
+            # if not hasattr(self.page, 'update_async'):
+            #     print("[UI] Page no tiene update_async aún")
+            #     return
+
+            if hasattr(self.page, 'window') and self.page.window is None:
+                print("[UI] Ventana cerrada")
+                return
+
+            if not hasattr(self.page, 'controls') or not self.page.controls:
+                print("[UI] Page sin controles inicializados")
+                return
+
+            self.column.controls.clear()
+            tracks = state.tracks
+
+            if not tracks:
+                print("[UI] No hay tracks para mostrar")
+                try:
+                    self.page.update()   # <- llama directo, sin await
+                except:
+                    pass
+                return
+
+            for idx, track in enumerate(tracks):
+                try:
+                    self.column.controls.append(self._create_track_item(idx, track))
+                except Exception as e:
+                    print(f"[UI] Error creando item {idx}: {e}")
+                    continue
+
+            try:
+                self.page.update()   # <- llama directo, sin await
+                print(f"[UI] ✓ Lista actualizada: {len(tracks)} tracks")
+            except Exception as e:
+                print(f"[UI] Error en update: {e}")
+
+        except Exception as e:
+            print(f"[ERROR] TrackListView.update: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self._update_lock.release()
+
     def _create_track_item(self, track_index: int, track):
         is_selected = track_index == state.current_index
         has_sections = len(track.sections) > 0
         is_expanded = track.expanded
         
-        progress_bar = ProgressBar(self.theme.get, width=1220)
-        state.track_progress_bars[track_index] = progress_bar
-        progress_bar.container.visible = is_selected
-        
-        header = self._create_track_header(track_index, track, is_selected, has_sections, is_expanded, progress_bar)
+        header = self._create_track_header(track_index, track, is_selected, has_sections, is_expanded)
         sections = self._create_sections(track_index, track) if is_expanded and has_sections else None
         
         track_column = ft.Column(spacing=0, controls=[header] + ([sections] if sections else []))
+        
         drag_target = ft.DragTarget(
             group="tracks",
             content=track_column,
-            on_accept=lambda e, idx=track_index: self._on_drag_accept(idx)
+            on_accept=lambda e, idx=track_index: self.page.run_task(self._on_drag_accept, idx)  # CORREGIDO
         )
         
         return ft.Draggable(
@@ -55,8 +131,8 @@ class TrackListView:
             content_feedback=self._create_drag_feedback(track_index, track),
             on_drag_start=lambda e, idx=track_index: self._on_drag_start(idx)
         )
-    
-    def _create_track_header(self, track_index, track, is_selected, has_sections, is_expanded, progress_bar):
+
+    def _create_track_header(self, track_index, track, is_selected, has_sections, is_expanded):
         return ft.Container(
             content=ft.Column(
                 spacing=0,
@@ -98,7 +174,7 @@ class TrackListView:
                             ft.IconButton(
                                 icon=ft.Icons.KEYBOARD_ARROW_DOWN if not is_expanded else ft.Icons.KEYBOARD_ARROW_UP,
                                 icon_size=18,
-                                on_click=lambda e, idx=track_index: self._toggle_expand(idx),
+                                on_click=lambda e, idx=track_index: self.page.run_task(self._toggle_expand, idx),  # CORREGIDO
                                 visible=has_sections,
                                 icon_color=self.theme.get("accent"),
                             ),
@@ -107,7 +183,6 @@ class TrackListView:
                         spacing=0,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
-                    progress_bar.container,
                     ft.Container(
                         width=None,
                         height=2,
@@ -120,9 +195,9 @@ class TrackListView:
             padding=ft.padding.symmetric(horizontal=20, vertical=16),
             border_radius=12,
             bgcolor=self.theme.get("bg_card") if is_selected else self.theme.get("bg_card") + "60",
-            on_click=lambda e, idx=track_index: self._on_track_click(idx),
+            on_click=lambda e, idx=track_index: self.page.run_task(self._on_track_click, idx),  # CORREGIDO
         )
-    
+
     def _create_sections(self, track_index, track):
         section_items = []
         for sec_idx, section in enumerate(track.sections):
@@ -143,12 +218,12 @@ class TrackListView:
                     padding=ft.padding.symmetric(horizontal=16, vertical=10),
                     border_radius=8,
                     bgcolor=self.theme.get("bg_secondary") + "60",
-                    on_click=lambda e, t_idx=track_index, s_idx=sec_idx: self._on_section_click(t_idx, s_idx),
+                    on_click=lambda e, t_idx=track_index, s_idx=sec_idx: self.page.run_task(self._on_section_click, t_idx, s_idx),  # CORREGIDO
                     ink=True,
                 )
             )
         return ft.Container(content=ft.Column(spacing=4, controls=section_items), padding=ft.padding.only(top=8))
-    
+
     def _create_drag_feedback(self, track_index, track):
         return ft.Container(
             content=ft.Row(
@@ -165,25 +240,30 @@ class TrackListView:
             bgcolor=self.theme.get("accent"),
             opacity=0.95
         )
-    
-    def _on_track_click(self, track_index):
-        state.current_index = track_index
-        StatusBar.instance.update(f"Seleccionado: {state.tracks[track_index].title}", self.theme.get("accent"), self._safe_update)
-        self.update()
-    
-    def _toggle_expand(self, track_index):
-        state.tracks[track_index].expanded = not state.tracks[track_index].expanded
-        self.update()
-    
-    def _on_section_click(self, track_index, section_index):
+
+    async def _on_track_click(self, track_index):
+        if 0 <= track_index < len(state.tracks):
+            state.current_index = track_index
+            StatusBar.instance.text.value = f"● Seleccionado: {state.tracks[track_index].title}"
+            StatusBar.instance.text.color = self.theme.get("accent")
+            await self.update()
+
+    async def _toggle_expand(self, track_index):
+        if 0 <= track_index < len(state.tracks):
+            state.tracks[track_index].expanded = not state.tracks[track_index].expanded
+            await self.update()
+
+    async def _on_section_click(self, track_index, section_index):
         if playback.jump_to_section(track_index, section_index):
             section = state.tracks[track_index].sections[section_index]
-            StatusBar.instance.update(f"▶ {section.name}", self.theme.get("accent"), self._safe_update)
-    
+            StatusBar.instance.text.value = f"● ▶ {section.name}"
+            StatusBar.instance.text.color = self.theme.get("accent")
+            self.page.update()
+
     def _on_drag_start(self, track_index):
         self.drag_state["dragging_index"] = track_index
-    
-    def _on_drag_accept(self, track_index):
+
+    async def _on_drag_accept(self, track_index):
         start_idx = self.drag_state["dragging_index"]
         if start_idx is None or start_idx == track_index:
             return
@@ -198,27 +278,22 @@ class TrackListView:
         elif track_index <= state.current_index < start_idx:
             state.current_index += 1
         
-        StatusBar.instance.update(f"✓ Reordenado: {moved_track.title}", self.theme.get("button_play"), self._safe_update)
-        self.update()
+        StatusBar.instance.text.value = f"● ✓ Reordenado: {moved_track.title}"
+        StatusBar.instance.text.color = self.theme.get("button_play")
+        
+        await self.update()
         self.drag_state["dragging_index"] = None
-    
-    def _safe_update(self):
-        try:
-            self.page.update()
-        except Exception as e:
-            if "__uid" not in str(e):
-                print(f"[UPDATE ERROR] {e}")
 
-
+# ============================================
+# CONTROL PANEL - CORREGIDO
+# ============================================
 class ControlPanel:
-    """Panel de controles simplificado"""
-    
-    def __init__(self, theme: ThemeManager, page):
+    def __init__(self, theme: ThemeManager, page: ft.Page):
         self.theme = theme
         self.page = page
         self.last_nav_time = 0
-        
-        self.metronome_btn = MetronomeButton(theme.get, self._on_metronome_click)
+
+        self.metronome_btn = MetronomeButton(theme.get, lambda e: page.run_task(self._on_metronome_click, e))
         self.tempo_display = TempoDisplay(theme.get, state.current_tempo, state.time_signature_num)
         self.beat_indicator = BeatIndicator(theme.get)
         
@@ -227,7 +302,7 @@ class ControlPanel:
         self.prev_btn = self._create_nav_btn(ft.Icons.SKIP_PREVIOUS_ROUNDED, self._on_prev)
         self.next_btn = self._create_nav_btn(ft.Icons.SKIP_NEXT_ROUNDED, self._on_next)
         self.scan_btn = self._create_button("SCAN", ft.Icons.SEARCH_ROUNDED, self._on_scan, "button_scan")
-        
+
         self.container = ft.Column(
             spacing=10,
             controls=[
@@ -278,7 +353,7 @@ class ControlPanel:
             height=90,
             border_radius=10,
             bgcolor=self.theme.get(color_key),
-            on_click=on_click,
+            on_click=lambda e: self.page.run_task(on_click, e),  # CORREGIDO
             ink=True,
         )
     
@@ -289,79 +364,146 @@ class ControlPanel:
             height=72,
             border_radius=12,
             bgcolor=self.theme.get("button_nav"),
-            on_click=on_click,
+            on_click=lambda e: self.page.run_task(on_click, e),  # CORREGIDO
             ink=True,
             alignment=ft.alignment.center,
         )
-    
-    def _on_metronome_click(self, e):
-        is_on = playback.toggle_metronome()
-        self.metronome_btn.set_state(is_on, self._safe_update)
-        StatusBar.instance.update(
-            f"Metrónomo: {'ON' if is_on else 'OFF'}",
-            self.theme.get("button_metro_on") if is_on else self.theme.get("text_secondary"),
-            self._safe_update
-        )
-    
-    def _on_play(self, e):
-        if state.current_index < 0:
-            StatusBar.instance.update("Sin track seleccionado", self.theme.get("button_stop"), self._safe_update)
-            return
-        if state.is_playing:
+
+    async def _on_metronome_click(self, e):
+        try:
+            is_on = playback.toggle_metronome()
+            self.metronome_btn.set_state(is_on)
+            
+            StatusBar.instance.text.value = f"● Metrónomo: {'ON' if is_on else 'OFF'}"
+            StatusBar.instance.text.color = self.theme.get("button_metro_on") if is_on else self.theme.get("text_secondary")
+            self.page.update()
+        except Exception as ex:
+            print(f"[ERROR] _on_metronome_click: {ex}")
+
+    async def _on_play(self, e):
+        try:
+            current_idx = state.current_index
+            track_count = state.get_track_count()
+            
+            if current_idx < 0 or current_idx >= track_count:
+                StatusBar.instance.text.value = "● Sin track seleccionado"
+                StatusBar.instance.text.color = self.theme.get("button_stop")
+                self.page.update()
+                return
+            
+            if state.is_playing:
+                playback.stop()
+            
+            if playback.play_track(current_idx):
+                track = state.tracks[current_idx]
+                StatusBar.instance.text.value = f"● ▶ Play: {track.title}"
+                StatusBar.instance.text.color = self.theme.get("button_play")
+                self.page.update()
+                await TrackListView.instance.update()
+            else:
+                StatusBar.instance.text.value = "● Error al reproducir"
+                StatusBar.instance.text.color = self.theme.get("button_stop")
+                self.page.update()
+        except Exception as ex:
+            print(f"[ERROR] _on_play: {ex}")
+
+    async def _on_stop(self, e):
+        try:
             playback.stop()
-            time.sleep(0.15)
-        if playback.play_track(state.current_index):
-            track = state.tracks[state.current_index]
-            StatusBar.instance.update(f"▶ Play: {track.title}", self.theme.get("button_play"), self._safe_update)
-    
-    def _on_stop(self, e):
-        playback.stop()
-        StatusBar.instance.update("■ Stop", self.theme.get("button_stop"), self._safe_update)
-    
-    def _on_next(self, e):
-        if self._check_nav_debounce() and playback.next_track():
-            time.sleep(0.1)
-            TrackListView.instance.update()
-    
-    def _on_prev(self, e):
-        if self._check_nav_debounce() and playback.prev_track():
-            time.sleep(0.1)
-            TrackListView.instance.update()
-    
-    def _on_scan(self, e):
-        StatusBar.instance.update("Escaneando...", self.theme.get("button_scan"), self._safe_update)
-        playback.scan_all()
-        time.sleep(0.3)
-        state.current_index = 0 if state.tracks else -1
-        TrackListView.instance.update()
-    
+            StatusBar.instance.text.value = "● ▪ Stop"
+            StatusBar.instance.text.color = self.theme.get("button_stop")
+            self.page.update()
+        except Exception as ex:
+            print(f"[ERROR] _on_stop: {ex}")
+
+    async def _on_next(self, e):
+        try:
+            if not self._check_nav_debounce():
+                return
+            
+            if playback.next_track():
+                await asyncio.sleep(0.12)
+                await TrackListView.instance.update()
+                
+                track = state.get_current_track()
+                if track:
+                    StatusBar.instance.text.value = f"● ▶ Next: {track.title}"
+                    StatusBar.instance.text.color = self.theme.get("button_play")
+                    self.page.update()
+            else:
+                StatusBar.instance.text.value = "● ⊘ Último track"
+                StatusBar.instance.text.color = self.theme.get("text_secondary")
+                self.page.update()
+        except Exception as ex:
+            print(f"[ERROR] _on_next: {ex}")
+
+    async def _on_prev(self, e):
+        try:
+            if not self._check_nav_debounce():
+                return
+            
+            if playback.prev_track():
+                await asyncio.sleep(0.12)
+                await TrackListView.instance.update()
+                
+                track = state.get_current_track()
+                if track:
+                    StatusBar.instance.text.value = f"● ▶ Prev: {track.title}"
+                    StatusBar.instance.text.color = self.theme.get("button_play")
+                    self.page.update()
+            else:
+                StatusBar.instance.text.value = "● ⊘ Primer track"
+                StatusBar.instance.text.color = self.theme.get("text_secondary")
+                self.page.update()
+        except Exception as ex:
+            print(f"[ERROR] _on_prev: {ex}")
+
+    async def _on_scan(self, e):
+        try:
+            StatusBar.instance.text.value = "● ⟳ Escaneando Ableton..."
+            StatusBar.instance.text.color = self.theme.get("button_scan")
+            self.page.update()
+
+            if playback.scan_all():
+                await asyncio.sleep(0.5)
+                
+                state.current_index = 0 if state.get_track_count() > 0 else -1
+                await TrackListView.instance.update()
+                
+                StatusBar.instance.text.value = f"● ✓ Scan completo: {state.get_track_count()} tracks"
+                StatusBar.instance.text.color = self.theme.get("button_play")
+                self.page.update()
+            else:
+                StatusBar.instance.text.value = "● ✗ Error en scan"
+                StatusBar.instance.text.color = self.theme.get("button_stop")
+                self.page.update()
+        except Exception as ex:
+            print(f"[ERROR] _on_scan: {ex}")
+
     def _check_nav_debounce(self) -> bool:
         now = time.time()
         if now - self.last_nav_time < DEBOUNCE_NAV_MS / 1000:
             return False
         self.last_nav_time = now
         return True
-    
-    def _safe_update(self):
-        try:
-            self.page.update()
-        except Exception as e:
-            if "__uid" not in str(e):
-                print(f"[UPDATE ERROR] {e}")
 
-
+# ============================================
+# DIALOG MANAGER - CORREGIDO
+# ============================================
 class DialogManager:
-    """Gestor de diálogos simplificado"""
-    
-    def __init__(self, page, theme: ThemeManager):
+    """Gestor de diálogos de guardado y carga de setlists"""
+
+    def __init__(self, page: ft.Page, theme: ThemeManager):
         self.page = page
         self.theme = theme
-    
-    def show_save_setlist(self):
+
+    async def show_save_setlist(self):
         if not state.locators:
-            StatusBar.instance.update("⚠️ Sin locators. Presiona SCAN primero", self.theme.get("button_stop"), self._safe_update)
+            StatusBar.instance.text.value = "● ⚠️ Sin locators. Presiona SCAN primero"
+            StatusBar.instance.text.color = self.theme.get("button_stop")
+            self.page.update()
             return
-        
+
         name_field = ft.TextField(
             label="Nombre del setlist",
             width=350,
@@ -372,33 +514,30 @@ class DialogManager:
             border_color=self.theme.get("accent"),
         )
         error_text = ft.Text("", size=12, color=ft.Colors.RED_400, visible=False)
-        
-        def close_dlg(e):
+
+        async def close_dlg(e=None):
             dlg.open = False
-            self._safe_update()
-        
-        def do_save(e):
+            self.page.update()
+
+        async def do_save(e=None):
             name = name_field.value.strip()
             if not name:
                 error_text.value = "⚠️ Debes ingresar un nombre"
                 error_text.visible = True
-                self._safe_update()
+                self.page.update()
                 return
-            
+
             if manager.save(name, state.locators, state.tracks):
                 sections_count = sum(len(t.sections) for t in state.tracks)
-                StatusBar.instance.update(
-                    f"✓ '{name}' guardado ({len(state.locators)} locators, {len(state.tracks)} tracks, {sections_count} sections)",
-                    self.theme.get("button_play"),
-                    self._safe_update
-                )
-                close_dlg(None)
-                self._update_setlist_counter()
+                StatusBar.instance.text.value = f"● ✓ '{name}' guardado ({len(state.locators)} locators, {len(state.tracks)} tracks, {sections_count} sections)"
+                StatusBar.instance.text.color = self.theme.get("button_play")
+                await close_dlg()
+                await self._update_setlist_counter()
             else:
-                error_text.value = "❌ Error al guardar"
+                error_text.value = "✖ Error al guardar"
                 error_text.visible = True
-                self._safe_update()
-        
+                self.page.update()
+
         dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text("💾 Guardar Setlist", color=self.theme.get("text_primary")),
@@ -411,52 +550,66 @@ class DialogManager:
                     name_field,
                     ft.Text(
                         f"Se guardarán {len(state.locators)} locators y {len(state.tracks)} tracks",
-                        size=12,
-                        italic=True,
+                        size=12, 
+                        italic=True, 
                         color=self.theme.get("text_secondary")
                     ),
                     error_text
                 ]
             ),
             actions=[
-                ft.TextButton("Cancelar", on_click=close_dlg),
-                ft.FilledButton("💾 Guardar", on_click=do_save)
+                ft.TextButton("Cancelar", on_click=lambda e: self.page.run_task(close_dlg, e)),
+                ft.FilledButton("💾 Guardar", on_click=lambda e: self.page.run_task(do_save, e))
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )
         self.page.open(dlg)
-    
-    def show_load_setlist(self):
+
+    async def show_load_setlist(self):
         saved = manager.list_all()
-        
-        def close_dlg(e):
+
+        async def close_dlg(e=None):
             dlg.open = False
-            self._safe_update()
-        
-        def do_load(e):
+            self.page.update()
+
+        async def do_load(e=None):
             if not dropdown.value:
                 return
-            
-            data = manager.load(dropdown.value)
-            if not data or "locators" not in data:
-                StatusBar.instance.update("❌ Error al cargar", self.theme.get("button_stop"), self._safe_update)
-                return
-            
-            state.locators = data["locators"]
-            if "tracks" in data:
-                state.tracks = data["tracks"]
-            
-            state.current_index = 0 if state.tracks else -1
-            TrackListView.instance.update()
-            
-            total_sections = sum(len(t.sections) for t in state.tracks)
-            StatusBar.instance.update(
-                f"✓ '{data['name']}' cargado ({len(state.locators)} locators, {len(state.tracks)} tracks, {total_sections} sections)",
-                self.theme.get("button_play"),
-                self._safe_update
-            )
-            close_dlg(None)
-        
+
+            try:
+                data = manager.load(dropdown.value)
+                if not data or "locators" not in data:
+                    StatusBar.instance.text.value = "● ✖ Error al cargar"
+                    StatusBar.instance.text.color = self.theme.get("button_stop")
+                    self.page.update()
+                    return
+
+                # Detener reproducción antes de cargar
+                if state.is_playing:
+                    playback.stop()
+                    await asyncio.sleep(0.2)
+
+                # Cargar datos
+                state.locators = data["locators"]
+                if "tracks" in data:
+                    state.tracks = data["tracks"]
+
+                # Reset índice
+                state.current_index = 0 if state.tracks else -1
+
+                # Actualizar UI
+                await TrackListView.instance.update()
+
+                total_sections = sum(len(t.sections) for t in state.tracks)
+                StatusBar.instance.text.value = f"● ✓ '{data['name']}' cargado ({len(state.locators)} locators, {len(state.tracks)} tracks, {total_sections} sections)"
+                StatusBar.instance.text.color = self.theme.get("button_play")
+                self.page.update()
+                await close_dlg()
+            except Exception as ex:
+                print(f"[ERROR] do_load: {ex}")
+                import traceback
+                traceback.print_exc()
+
         if saved:
             dropdown = ft.Dropdown(
                 label="Setlists guardados",
@@ -471,12 +624,17 @@ class DialogManager:
                 spacing=10,
                 controls=[
                     dropdown,
-                    ft.Text(f"📁 {len(saved)} setlist(s) disponible(s)", size=12, italic=True, color=self.theme.get("text_secondary"))
+                    ft.Text(
+                        f"📁 {len(saved)} setlist(s) disponible(s)", 
+                        size=12, 
+                        italic=True,
+                        color=self.theme.get("text_secondary")
+                    )
                 ]
             )
             actions = [
-                ft.TextButton("Cancelar", on_click=close_dlg),
-                ft.FilledButton("📂 Cargar", on_click=do_load)
+                ft.TextButton("Cancelar", on_click=lambda e: self.page.run_task(close_dlg, e)),
+                ft.FilledButton("📂 Cargar", on_click=lambda e: self.page.run_task(do_load, e))
             ]
         else:
             content = ft.Column(
@@ -485,11 +643,16 @@ class DialogManager:
                 spacing=12,
                 controls=[
                     ft.Text("No hay setlists guardados", size=14, color=self.theme.get("text_primary")),
-                    ft.Text("💡 Usa el botón 💾 para guardar tu primer setlist", size=11, italic=True, color=self.theme.get("text_secondary"))
+                    ft.Text(
+                        "💡 Usa el botón 💾 para guardar tu primer setlist", 
+                        size=11, 
+                        italic=True,
+                        color=self.theme.get("text_secondary")
+                    )
                 ]
             )
-            actions = [ft.TextButton("Cerrar", on_click=close_dlg)]
-        
+            actions = [ft.TextButton("Cerrar", on_click=lambda e: self.page.run_task(close_dlg, e))]
+
         dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text("📂 Cargar Setlist", color=self.theme.get("text_primary")),
@@ -499,28 +662,22 @@ class DialogManager:
             actions_alignment=ft.MainAxisAlignment.END
         )
         self.page.open(dlg)
-    
-    def _update_setlist_counter(self):
+
+    async def _update_setlist_counter(self):
         count = len(manager.list_all())
         if hasattr(self, 'save_counter'):
             self.save_counter.value = f"💾 {count}"
-            self._safe_update()
-    
-    def _safe_update(self):
-        try:
             self.page.update()
-        except Exception as e:
-            if "__uid" not in str(e):
-                print(f"[UPDATE ERROR] {e}")
 
 # ============================================
 # FUNCIÓN PRINCIPAL
 # ============================================
 def main(page: ft.Page):
+    """Función principal - Thread-safe con async"""
     try:
         print("[UI] Inicializando página...")
         state.page_ref = page
-        
+
         page.title = "Ableton Setlist Controller"
         page.window.width = 900
         page.window.height = 800
@@ -529,38 +686,52 @@ def main(page: ft.Page):
         page.padding = 0
         page.spacing = 0
         page.theme_mode = ft.ThemeMode.DARK
-        
+
         print("[UI] Creando componentes...")
+
     except Exception as e:
-        print(f"[ERROR] {str(e)}")
+        print(f"[ERROR] Inicialización fallida: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return
-    
+
+    # Tema y componentes
     theme = ThemeManager("Mono Dark")
     page.theme = ft.Theme(color_scheme_seed=theme.get("accent"))
-    
+
     status_bar = StatusBar(theme.get)
     StatusBar.instance = status_bar
-    
+
     track_list = TrackListView(theme, page)
     TrackListView.instance = track_list
-    
+
     control_panel = ControlPanel(theme, page)
     dialog_manager = DialogManager(page, theme)
-    
-    save_counter = ft.Text(f"💾 {len(manager.list_all())}", size=12, weight=ft.FontWeight.W_500, color=theme.get("text_primary"))
-    
-    def update_setlist_counter():
-        save_counter.value = f"💾 {len(manager.list_all())}"
-        try:
-            page.update()
-        except:
-            pass
-    
+
+    # Header
+    save_counter = ft.Text(
+        f"💾 {len(manager.list_all())}", 
+        size=12, 
+        weight=ft.FontWeight.W_500, 
+        color=theme.get("text_primary")
+    )
     dialog_manager.save_counter = save_counter
+
+    save_btn = ft.IconButton(
+        icon=ft.Icons.SAVE,
+        on_click=lambda e: page.run_task(dialog_manager.show_save_setlist),
+        icon_size=22,
+        tooltip="Guardar Setlist"
+    )
     
-    save_btn = ft.IconButton(icon=ft.Icons.SAVE, on_click=lambda e: dialog_manager.show_save_setlist(), icon_size=22)
-    load_btn = ft.IconButton(icon=ft.Icons.FOLDER_OPEN, on_click=lambda e: dialog_manager.show_load_setlist(), icon_size=22)
-    
+    load_btn = ft.IconButton(
+        icon=ft.Icons.FOLDER_OPEN,
+        on_click=lambda e: page.run_task(dialog_manager.show_load_setlist),
+        icon_size=22,
+        tooltip="Cargar Setlist"
+    )
+
+    # Palette dropdown
     palette_dropdown = ft.Dropdown(
         width=180,
         value=theme.current_name,
@@ -572,23 +743,45 @@ def main(page: ft.Page):
         text_style=ft.TextStyle(weight=ft.FontWeight.W_600, color=theme.get("text_primary")),
         content_padding=ft.padding.symmetric(horizontal=8, vertical=8),
     )
-    
+
     def on_theme_change(e):
-        theme.set_theme(palette_dropdown.value)
-        apply_colors()
-        StatusBar.instance.update(f"Paleta: {theme.current_name}", theme.get("accent"), lambda: page.update())
-    
+        """Callback síncrono para cambio de tema"""
+        try:
+            theme.set_theme(palette_dropdown.value)
+            
+            # Actualizar colores
+            page.bgcolor = theme.get("bg_main")
+            listbox_container.bgcolor = theme.get("bg_card") + "40"
+            
+            # Recrear header
+            new_header = create_header(page, palette_dropdown, save_counter, save_btn, load_btn, theme.get, web_port=5000)
+            page.controls[0].content.controls[0] = new_header
+            
+            control_panel.beat_indicator.container.bgcolor = theme.get("bg_card")
+            control_panel.tempo_display.text.color = theme.get("text_primary")
+            
+            StatusBar.instance.text.value = f"● Paleta: {theme.current_name}"
+            StatusBar.instance.text.color = theme.get("accent")
+            
+            # Actualizar lista y página
+            page.run_task(track_list.update)
+            page.update()
+            
+        except Exception as ex:
+            print(f"[ERROR] on_theme_change: {ex}")
+
     palette_dropdown.on_change = on_theme_change
-    
+
     header_container = create_header(
         page,
         palette_dropdown,
         save_counter,
         save_btn,
         load_btn,
-        theme.get
+        theme.get,
+        web_port=5000
     )
-    
+
     listbox_container = ft.Container(
         content=track_list.column,
         expand=True,
@@ -596,7 +789,7 @@ def main(page: ft.Page):
         padding=ft.padding.all(18),
         bgcolor=theme.get("bg_card") + "40",
     )
-    
+
     main_row = ft.Row(
         spacing=18,
         expand=True,
@@ -605,7 +798,7 @@ def main(page: ft.Page):
             ft.Container(width=250, content=control_panel.container)
         ]
     )
-    
+
     page.add(
         ft.Container(
             expand=True,
@@ -622,57 +815,128 @@ def main(page: ft.Page):
             )
         )
     )
+
+    # Callback de cierre
+    def on_window_close(e):
+        print("[UI] Cerrando aplicación...")
+        state.page_ref = None
     
-    def trigger_pulse(beat: int):
-        control_panel.beat_indicator.pulse(beat, state.time_signature_num, lambda: page.update())
-    
-    def update_tempo_display():
-        control_panel.tempo_display.update(state.current_tempo, state.time_signature_num, lambda: page.update())
-    
-    def update_track_progress(current_beat: float):
-        if 0 <= state.current_index < len(state.tracks):
-            track = state.tracks[state.current_index]
-            progress_bar = state.track_progress_bars.get(state.current_index)
-            if progress_bar:
-                progress = track.get_progress(current_beat)
-                progress_bar.update_progress(progress)
-    
-    def update_listbox():
-        track_list.update()
-    
-    def update_metronome_ui():
-        control_panel.metronome_btn.set_state(state.metronome_on, lambda: page.update())
-    
-    page.trigger_pulse = trigger_pulse
-    page.update_tempo_display = update_tempo_display
-    page.update_track_progress = update_track_progress
-    page.update_listbox = update_listbox
-    page.update_metronome_ui = update_metronome_ui
-    
-    def apply_colors():
-        page.bgcolor = theme.get("bg_main")
-        listbox_container.bgcolor = theme.get("bg_card") + "40"
-        
-        new_header = create_header(
-            page,
-            palette_dropdown,
-            save_counter,
-            save_btn,
-            load_btn,
-            theme.get
-        )
-        
-        page.controls[0].content.controls[0] = new_header
-        
-        control_panel.beat_indicator.container.bgcolor = theme.get("bg_card")
-        control_panel.tempo_display.text.color = theme.get("text_primary")
-                
-        track_list.update()
-        page.update()
-    
-    apply_colors()
-    
-    time.sleep(1)
-    playback.scan_all()
-    
-    print("[INIT] ✓ App lista\n")
+    page.on_close = on_window_close
+
+    # ============================================
+    # CALLBACKS OSC - Thread-safe
+    # ============================================
+    def trigger_pulse_wrapper(beat: int):
+        """Wrapper thread-safe para trigger_pulse desde OSC"""
+        try:
+            control_panel.beat_indicator.pulse(beat, state.time_signature_num, lambda: safe_ui_update_sync(page))
+        except Exception as e:
+            if "__uid" not in str(e):
+                print(f"[ERROR] trigger_pulse: {e}")
+
+    def update_tempo_display_wrapper():
+        """Wrapper thread-safe para update_tempo_display desde OSC"""
+        try:
+            control_panel.tempo_display.update(state.current_tempo, state.time_signature_num, lambda: safe_ui_update_sync(page))
+        except Exception as e:
+            if "__uid" not in str(e):
+                print(f"[ERROR] update_tempo_display: {e}")
+
+    def update_listbox_wrapper():
+        """Wrapper thread-safe para update_listbox desde OSC"""
+        try:
+            # Ejecutar update async desde thread OSC
+            if hasattr(page, 'run_task'):
+                page.run_task(track_list.update)
+        except Exception as e:
+            if "__uid" not in str(e):
+                print(f"[ERROR] update_listbox: {e}")
+
+    def update_metronome_ui_wrapper():
+        """Wrapper thread-safe para update_metronome_ui desde OSC"""
+        try:
+            control_panel.metronome_btn.set_state(state.metronome_on)
+            safe_ui_update_sync(page)
+        except Exception as e:
+            if "__uid" not in str(e):
+                print(f"[ERROR] update_metronome_ui: {e}")
+
+    # Asignar wrappers a page para que OSC los llame
+    page.trigger_pulse = trigger_pulse_wrapper
+    page.update_tempo_display = update_tempo_display_wrapper
+    page.update_listbox = update_listbox_wrapper
+    page.update_metronome_ui = update_metronome_ui_wrapper
+
+    # ============================================
+    # SCAN INICIAL - VERSIÓN ROBUSTA CON ASYNC
+    # ============================================
+    async def run_initial_scan():
+        """Ejecuta el scan después de que la UI esté completamente renderizada (versión Flet 0.28)."""
+        try:
+            print("[INIT] ⏳ UI renderizada, esperando estabilización...")
+            await asyncio.sleep(1.2)  # dar tiempo a Flet
+
+            print("[INIT] ⟳ Ejecutando scan inicial...")
+
+            # Ejecutar scan en thread para no bloquear la UI
+            scan_complete = threading.Event()
+            scan_success = [False]
+
+            def do_scan():
+                try:
+                    if playback.scan_all():
+                        time.sleep(0.6)  # esperar a que lleguen datos OSC
+                        if state.get_track_count() > 0:
+                            state.current_index = 0
+                            scan_success[0] = True
+                            print(f"[INIT] ✓ {state.get_track_count()} tracks detectados")
+                        else:
+                            print("[INIT] ⚠ No se detectaron tracks")
+                    else:
+                        print("[INIT] ✗ Error en scan inicial")
+                except Exception as e:
+                    print(f"[ERROR] do_scan: {e}")
+                finally:
+                    scan_complete.set()
+
+            scan_thread = threading.Thread(target=do_scan, daemon=True)
+            scan_thread.start()
+
+            # Esperar a que termine (timeout 10s)
+            await asyncio.get_event_loop().run_in_executor(None, lambda: scan_complete.wait(timeout=10.0))
+
+            # =====================================================
+            # Actualizar UI solo si hay tracks
+            # =====================================================
+            if scan_success[0] and state.get_track_count() > 0:
+                print("[INIT] Actualizando UI con tracks...")
+                await asyncio.sleep(0.25)  # pausa para estabilizar
+
+                # FORZAR update de TrackListView en hilo de UI
+                async def do_ui_update():
+                    try:
+                        if TrackListView.instance:
+                            await TrackListView.instance.update()
+                            safe_ui_update_sync(page)
+                            print("[INIT] ✓ UI actualizada correctamente")
+                        else:
+                            print("[INIT] ✗ TrackListView.instance no disponible")
+                    except Exception as e:
+                        print(f"[INIT] Error en do_ui_update: {e}")
+
+                await do_ui_update()
+
+            else:
+                print("[INIT] ⚠ No hay tracks para mostrar en UI (scan no exitoso)")
+
+        except Exception as e:
+            print(f"[ERROR] run_initial_scan: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    # CRÍTICO: Programar scan DESPUÉS del primer frame
+    print("[INIT] Programando scan inicial...")
+    page.run_task(run_initial_scan)
+
+    print("[INIT] ✓ App lista - scan programado...\n")
