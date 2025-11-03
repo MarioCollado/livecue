@@ -1,4 +1,4 @@
-# ui/app_ui.py - INICIO DEL ARCHIVO
+# ui/app_ui.py
 import flet as ft
 import time
 import threading
@@ -29,7 +29,7 @@ def safe_ui_update_sync(page_ref):
         if hasattr(page_ref, 'window') and page_ref.window is None:
             return False
 
-        # ⚠️ La clave: forzar ejecución en el hilo principal del UI
+        # La clave: forzar ejecución en el hilo principal del UI
         if hasattr(page_ref, "call_later"):
             page_ref.call_later(lambda: page_ref.update())
         else:
@@ -44,7 +44,7 @@ def safe_ui_update_sync(page_ref):
         return False
     
 # ============================================
-# TRACK LIST VIEW - CORREGIDO
+# TRACK LIST VIEW 
 # ============================================
 class TrackListView:
     instance = None
@@ -54,7 +54,7 @@ class TrackListView:
         self.page = page
         self.drag_state = {"dragging_index": None}
         self.column = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
-        self._update_lock = threading.Lock()  # CORREGIDO: threading.Lock en lugar de asyncio.Lock
+        self._update_lock = threading.Lock()
     
     async def update(self):
         """Update async con validación completa"""
@@ -65,10 +65,6 @@ class TrackListView:
             if not self.page:
                 print("[UI] Page es None")
                 return
-            # Elimina esta comprobación:
-            # if not hasattr(self.page, 'update_async'):
-            #     print("[UI] Page no tiene update_async aún")
-            #     return
 
             if hasattr(self.page, 'window') and self.page.window is None:
                 print("[UI] Ventana cerrada")
@@ -122,7 +118,7 @@ class TrackListView:
         drag_target = ft.DragTarget(
             group="tracks",
             content=track_column,
-            on_accept=lambda e, idx=track_index: self.page.run_task(self._on_drag_accept, idx)  # CORREGIDO
+            on_accept=lambda e, idx=track_index: self.page.run_task(self._on_drag_accept, idx)  
         )
         
         return ft.Draggable(
@@ -174,7 +170,7 @@ class TrackListView:
                             ft.IconButton(
                                 icon=ft.Icons.KEYBOARD_ARROW_DOWN if not is_expanded else ft.Icons.KEYBOARD_ARROW_UP,
                                 icon_size=18,
-                                on_click=lambda e, idx=track_index: self.page.run_task(self._toggle_expand, idx),  # CORREGIDO
+                                on_click=lambda e, idx=track_index: self.page.run_task(self._toggle_expand, idx),  
                                 visible=has_sections,
                                 icon_color=self.theme.get("accent"),
                             ),
@@ -195,7 +191,7 @@ class TrackListView:
             padding=ft.padding.symmetric(horizontal=20, vertical=16),
             border_radius=12,
             bgcolor=self.theme.get("bg_card") if is_selected else self.theme.get("bg_card") + "60",
-            on_click=lambda e, idx=track_index: self.page.run_task(self._on_track_click, idx),  # CORREGIDO
+            on_click=lambda e, idx=track_index: self.page.run_task(self._on_track_click, idx),  
         )
 
     def _create_sections(self, track_index, track):
@@ -218,7 +214,7 @@ class TrackListView:
                     padding=ft.padding.symmetric(horizontal=16, vertical=10),
                     border_radius=8,
                     bgcolor=self.theme.get("bg_secondary") + "60",
-                    on_click=lambda e, t_idx=track_index, s_idx=sec_idx: self.page.run_task(self._on_section_click, t_idx, s_idx),  # CORREGIDO
+                    on_click=lambda e, t_idx=track_index, s_idx=sec_idx: self.page.run_task(self._on_section_click, t_idx, s_idx),  
                     ink=True,
                 )
             )
@@ -285,7 +281,7 @@ class TrackListView:
         self.drag_state["dragging_index"] = None
 
 # ============================================
-# CONTROL PANEL - CORREGIDO
+# CONTROL PANEL 
 # ============================================
 class ControlPanel:
     def __init__(self, theme: ThemeManager, page: ft.Page):
@@ -353,7 +349,7 @@ class ControlPanel:
             height=90,
             border_radius=10,
             bgcolor=self.theme.get(color_key),
-            on_click=lambda e: self.page.run_task(on_click, e),  # CORREGIDO
+            on_click=lambda e: self.page.run_task(on_click, e),  
             ink=True,
         )
     
@@ -364,7 +360,7 @@ class ControlPanel:
             height=72,
             border_radius=12,
             bgcolor=self.theme.get("button_nav"),
-            on_click=lambda e: self.page.run_task(on_click, e),  # CORREGIDO
+            on_click=lambda e: self.page.run_task(on_click, e),  
             ink=True,
             alignment=ft.alignment.center,
         )
@@ -488,7 +484,7 @@ class ControlPanel:
         return True
 
 # ============================================
-# DIALOG MANAGER - CORREGIDO
+# DIALOG MANAGER 
 # ============================================
 class DialogManager:
     """Gestor de diálogos de guardado y carga de setlists"""
@@ -868,7 +864,7 @@ def main(page: ft.Page):
     page.update_metronome_ui = update_metronome_ui_wrapper
 
     # ============================================
-    # SCAN INICIAL - VERSIÓN ROBUSTA CON ASYNC
+    # SCAN INICIAL
     # ============================================
     async def run_initial_scan():
         """Ejecuta el scan después de que la UI esté completamente renderizada (versión Flet 0.28)."""

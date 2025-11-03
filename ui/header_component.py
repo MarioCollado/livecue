@@ -235,7 +235,7 @@ def create_header(page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft
                             border_radius=12,
                             bgcolor=get_color("bg_card") + "80",
                             border=ft.border.all(1, primary_color + "30"),
-                            tooltip=tooltip_text,  # CORREGIDO: tooltip como propiedad del Container
+                            tooltip=tooltip_text,
                         ),
                     ],
                 ),

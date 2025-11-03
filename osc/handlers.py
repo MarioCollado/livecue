@@ -1,4 +1,4 @@
-# osc/handlers.py - VERSIÓN CORREGIDA
+# osc/handlers.py
 from core.state import state, Locator, Track, Section
 from osc.client import send_message
 import threading
@@ -279,7 +279,7 @@ class OSCHandlers:
             return
         
         try:
-            # NUEVO: Validar que page_ref esté viva
+            # Validar que page_ref esté viva
             if not hasattr(state.page_ref, 'update'):
                 return
             

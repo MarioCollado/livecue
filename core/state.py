@@ -1,4 +1,4 @@
-# core/state.py - VERSIÓN MEJORADA
+# core/state.py
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 import threading
@@ -103,7 +103,6 @@ class AppState:
     @property
     def tracks(self) -> List[Track]:
         with self._lock:
-            # CAMBIO: Devolver copia para evitar modificaciones externas
             return self._tracks.copy()
 
     @tracks.setter

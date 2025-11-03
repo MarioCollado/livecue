@@ -1,4 +1,4 @@
-# main.py - VERSIÓN CORREGIDA
+# main.py
 import flet as ft
 from flask import Flask, jsonify
 from ui.app_ui import main as run_ui
