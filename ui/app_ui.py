@@ -1,4 +1,4 @@
-# ui/app_ui.py
+# ui/app_ui.py - VERSIÓN CORREGIDA PARA FLET 0.28.3
 import flet as ft
 import time
 import threading
@@ -17,34 +17,40 @@ DEBOUNCE_NAV_MS = 300
 # SAFE UI UPDATE - SYNC VERSION
 # ============================================
 def safe_ui_update_sync(page_ref):
-    """Versión SÍNCRONA segura para llamar desde threads OSC u otros hilos"""
+    """Versión SÍNCRONA segura con retry"""
     if not page_ref:
         return False
 
-    try:
-        if not hasattr(page_ref, 'update'):
-            return False
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            if not hasattr(page_ref, 'update'):
+                return False
 
-        # Si el objeto tiene 'window' y está cerrado, no actualizar
-        if hasattr(page_ref, 'window') and page_ref.window is None:
-            return False
+            if hasattr(page_ref, 'window') and page_ref.window is None:
+                return False
 
-        # La clave: forzar ejecución en el hilo principal del UI
-        if hasattr(page_ref, "call_later"):
-            page_ref.call_later(lambda: page_ref.update())
-        else:
             page_ref.update()
+            return True
 
-        return True
-
-    except Exception as e:
-        error_msg = str(e)
-        if "__uid" not in error_msg and "update_async" not in error_msg:
-            print(f"[SAFE_UI_UPDATE ERROR] {error_msg}")
-        return False
+        except AssertionError as e:
+            # Este es el error específico que estás teniendo
+            print(f"[SAFE_UI_UPDATE] AssertionError en intento {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                time.sleep(0.05)  # Pequeña pausa antes de reintentar
+                continue
+            return False
+            
+        except Exception as e:
+            error_msg = str(e)
+            if "__uid" not in error_msg and "update_async" not in error_msg:
+                print(f"[SAFE_UI_UPDATE ERROR] {error_msg}")
+            return False
+    
+    return False
     
 # ============================================
-# TRACK LIST VIEW 
+# TRACK LIST VIEW - CORREGIDO
 # ============================================
 class TrackListView:
     instance = None
@@ -57,11 +63,13 @@ class TrackListView:
         self._update_lock = threading.Lock()
     
     async def update(self):
-        """Update async con validación completa"""
+        """Update async con protección contra controles corruptos"""
         if not self._update_lock.acquire(blocking=False):
             print("[UI] Update ya en progreso, ignorando...")
             return
+        
         try:
+            # Validaciones básicas
             if not self.page:
                 print("[UI] Page es None")
                 return
@@ -74,29 +82,46 @@ class TrackListView:
                 print("[UI] Page sin controles inicializados")
                 return
 
-            self.column.controls.clear()
+            # NUEVO: Obtener tracks ANTES de limpiar
             tracks = state.tracks
-
+            
             if not tracks:
                 print("[UI] No hay tracks para mostrar")
-                try:
-                    self.page.update()   # <- llama directo, sin await
-                except:
-                    pass
+                # Limpiar solo si hay algo que limpiar
+                if len(self.column.controls) > 0:
+                    self.column.controls.clear()
+                    try:
+                        self.page.update()
+                    except:
+                        pass
                 return
 
+            # NUEVO: Crear TODOS los items primero (sin modificar column)
+            new_items = []
             for idx, track in enumerate(tracks):
                 try:
-                    self.column.controls.append(self._create_track_item(idx, track))
+                    item = self._create_track_item(idx, track)
+                    new_items.append(item)
                 except Exception as e:
                     print(f"[UI] Error creando item {idx}: {e}")
                     continue
 
+            # Si no se crearon items, abortar
+            if not new_items:
+                print("[UI] No se pudieron crear items")
+                return
+
+            # CRÍTICO: Limpiar y asignar en una sola operación
             try:
-                self.page.update()   # <- llama directo, sin await
+                self.column.controls = new_items  # REEMPLAZAR en lugar de clear + append
+                self.page.update()
                 print(f"[UI] ✓ Lista actualizada: {len(tracks)} tracks")
+            except AssertionError as e:
+                print(f"[UI] AssertionError en update: {e}")
+                # FALLBACK: Intentar reconstruir desde cero
+                await self._rebuild_from_scratch(tracks)
             except Exception as e:
-                print(f"[UI] Error en update: {e}")
+                print(f"[UI] Error en page.update: {e}")
 
         except Exception as e:
             print(f"[ERROR] TrackListView.update: {e}")
@@ -105,29 +130,89 @@ class TrackListView:
         finally:
             self._update_lock.release()
 
-    def _create_track_item(self, track_index: int, track):
-        is_selected = track_index == state.current_index
-        has_sections = len(track.sections) > 0
-        is_expanded = track.expanded
-        
-        header = self._create_track_header(track_index, track, is_selected, has_sections, is_expanded)
-        sections = self._create_sections(track_index, track) if is_expanded and has_sections else None
-        
-        track_column = ft.Column(spacing=0, controls=[header] + ([sections] if sections else []))
-        
-        drag_target = ft.DragTarget(
-            group="tracks",
-            content=track_column,
-            on_accept=lambda e, idx=track_index: self.page.run_task(self._on_drag_accept, idx)  
-        )
-        
-        return ft.Draggable(
-            group="tracks",
-            content=drag_target,
-            content_feedback=self._create_drag_feedback(track_index, track),
-            on_drag_start=lambda e, idx=track_index: self._on_drag_start(idx)
-        )
+    async def _rebuild_from_scratch(self, tracks):
+        """Reconstruye la lista desde cero en caso de corrupción"""
+        try:
+            print("[UI] Reconstruyendo lista desde cero...")
+            
+            # Crear nueva columna
+            new_column = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+            
+            # Crear items
+            for idx, track in enumerate(tracks):
+                try:
+                    new_column.controls.append(self._create_track_item(idx, track))
+                except Exception as e:
+                    print(f"[UI] Error recreando item {idx}: {e}")
+                    continue
+            
+            # Reemplazar columna completa
+            if hasattr(self, 'column') and self.column:
+                # Obtener el contenedor padre (listbox_container)
+                parent = None
+                for control in self.page.controls:
+                    if hasattr(control, 'content') and hasattr(control.content, 'controls'):
+                        for row in control.content.controls:
+                            if hasattr(row, 'controls'):
+                                for col in row.controls:
+                                    if hasattr(col, 'content') and col.content == self.column:
+                                        parent = col
+                                        break
+                
+                if parent:
+                    parent.content = new_column
+                    self.column = new_column
+                    self.page.update()
+                    print("[UI] ✓ Lista reconstruida correctamente")
+                else:
+                    print("[UI] ✗ No se encontró contenedor padre")
+            
+        except Exception as e:
+            print(f"[ERROR] _rebuild_from_scratch: {e}")
+            import traceback
+            traceback.print_exc()
 
+    def _create_track_item(self, track_index: int, track):
+        """Crea un item de track con validación"""
+        try:
+            is_selected = track_index == state.current_index
+            has_sections = len(track.sections) > 0
+            is_expanded = track.expanded
+            
+            header = self._create_track_header(track_index, track, is_selected, has_sections, is_expanded)
+            sections = self._create_sections(track_index, track) if is_expanded and has_sections else None
+            
+            track_column = ft.Column(spacing=0, controls=[header] + ([sections] if sections else []))
+            
+            # Validar que header se creó correctamente
+            if not header:
+                raise ValueError(f"Header nulo para track {track_index}")
+            
+            drag_target = ft.DragTarget(
+                group="tracks",
+                content=track_column,
+                on_will_accept=self._on_will_accept_drag,
+                on_accept=self._create_drag_accept_handler(track_index),
+                on_leave=self._on_drag_leave
+            )
+            
+            draggable = ft.Draggable(
+                group="tracks",
+                content=drag_target,
+                content_feedback=self._create_drag_feedback(track_index, track),
+                on_drag_start=self._create_drag_start_handler(track_index)
+            )
+            
+            return draggable
+            
+        except Exception as e:
+            print(f"[ERROR] _create_track_item({track_index}): {e}")
+            # Devolver un container de placeholder en caso de error
+            return ft.Container(
+                content=ft.Text(f"Error: Track {track_index + 1}", color=ft.Colors.RED),
+                padding=10
+            )
+        
     def _create_track_header(self, track_index, track, is_selected, has_sections, is_expanded):
         return ft.Container(
             content=ft.Column(
@@ -170,7 +255,7 @@ class TrackListView:
                             ft.IconButton(
                                 icon=ft.Icons.KEYBOARD_ARROW_DOWN if not is_expanded else ft.Icons.KEYBOARD_ARROW_UP,
                                 icon_size=18,
-                                on_click=lambda e, idx=track_index: self.page.run_task(self._toggle_expand, idx),  
+                                on_click=self._create_toggle_expand_handler(track_index),  # CORREGIDO
                                 visible=has_sections,
                                 icon_color=self.theme.get("accent"),
                             ),
@@ -191,7 +276,7 @@ class TrackListView:
             padding=ft.padding.symmetric(horizontal=20, vertical=16),
             border_radius=12,
             bgcolor=self.theme.get("bg_card") if is_selected else self.theme.get("bg_card") + "60",
-            on_click=lambda e, idx=track_index: self.page.run_task(self._on_track_click, idx),  
+            on_click=self._create_track_click_handler(track_index),  # CORREGIDO
         )
 
     def _create_sections(self, track_index, track):
@@ -214,7 +299,7 @@ class TrackListView:
                     padding=ft.padding.symmetric(horizontal=16, vertical=10),
                     border_radius=8,
                     bgcolor=self.theme.get("bg_secondary") + "60",
-                    on_click=lambda e, t_idx=track_index, s_idx=sec_idx: self.page.run_task(self._on_section_click, t_idx, s_idx),  
+                    on_click=self._create_section_click_handler(track_index, sec_idx),  # CORREGIDO
                     ink=True,
                 )
             )
@@ -237,7 +322,129 @@ class TrackListView:
             opacity=0.95
         )
 
+    # ============================================
+    # HANDLERS CORREGIDOS - Sin lambdas problemáticas
+    # ============================================
+    def _create_track_click_handler(self, track_index):
+        """Crea handler para click en track"""
+        def handler(e):
+            self.page.run_task(self._on_track_click, track_index)
+        return handler
+
+    def _create_toggle_expand_handler(self, track_index):
+        """Crea handler para toggle expand"""
+        def handler(e):
+            self.page.run_task(self._toggle_expand, track_index)
+        return handler
+
+    def _create_section_click_handler(self, track_index, section_index):
+        """Crea handler para click en sección"""
+        def handler(e):
+            self.page.run_task(self._on_section_click, track_index, section_index)
+        return handler
+
+    def _create_drag_start_handler(self, track_index):
+        """Crea handler para drag start"""
+        def handler(e):
+            self._on_drag_start(track_index)
+        return handler
+
+    def _create_drag_accept_handler(self, target_index):
+        """Crea handler para drag accept"""
+        def handler(e):
+            self.page.run_task(self._on_drag_accept, target_index)
+        return handler
+
+    # ============================================
+    # DRAG & DROP CALLBACKS
+    # ============================================
+    def _on_will_accept_drag(self, e):
+        """Valida si se puede aceptar el drop"""
+        e.control.content.opacity = 0.5
+        self.page.update()
+
+    def _on_drag_leave(self, e):
+        """Restaura opacidad cuando sale del drop zone"""
+        e.control.content.opacity = 1.0
+        self.page.update()
+
+    def _on_drag_start(self, track_index):
+        """Inicio de drag - SÍNCRONO"""
+        self.drag_state["dragging_index"] = track_index
+        print(f"[DRAG] Iniciando drag de track {track_index}")
+
+
+    async def _on_drag_accept(self, target_index):
+        """Acepta el drop y reordena - ASYNC con protección"""
+        start_idx = self.drag_state.get("dragging_index")
+        
+        if start_idx is None:
+            print("[DRAG] Error: No hay índice de inicio")
+            return
+        
+        if start_idx == target_index:
+            print(f"[DRAG] Mismo índice, ignorando")
+            self.drag_state["dragging_index"] = None
+            return
+        
+        try:
+            print(f"[DRAG] Reordenando: {start_idx} -> {target_index}")
+            
+            # NUEVO: Adquirir lock antes de modificar
+            if not self._update_lock.acquire(blocking=True, timeout=2.0):
+                print("[DRAG] No se pudo adquirir lock, abortando")
+                return
+            
+            try:
+                # Validar índices
+                tracks_list = state.tracks
+                
+                if not (0 <= start_idx < len(tracks_list)):
+                    print(f"[DRAG] Error: start_idx {start_idx} fuera de rango")
+                    return
+                
+                if not (0 <= target_index < len(tracks_list)):
+                    print(f"[DRAG] Error: target_index {target_index} fuera de rango")
+                    return
+                
+                # Reordenar
+                moved_track = tracks_list.pop(start_idx)
+                tracks_list.insert(target_index, moved_track)
+                state.tracks = tracks_list
+                
+                # Ajustar current_index
+                if state.current_index == start_idx:
+                    state.current_index = target_index
+                elif start_idx < state.current_index <= target_index:
+                    state.current_index -= 1
+                elif target_index <= state.current_index < start_idx:
+                    state.current_index += 1
+                
+                StatusBar.instance.text.value = f"● ✓ Reordenado: {moved_track.title}"
+                StatusBar.instance.text.color = self.theme.get("button_play")
+                
+                # NUEVO: Pequeña pausa antes de actualizar
+                await asyncio.sleep(0.05)
+                
+                # Actualizar UI (ya con lock)
+                await self.update()
+                print(f"[DRAG] ✓ Reordenamiento completado")
+                
+            finally:
+                self._update_lock.release()
+                
+        except Exception as e:
+            print(f"[DRAG] Error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            self.drag_state["dragging_index"] = None
+            
+    # ============================================
+    # ASYNC CALLBACKS
+    # ============================================
     async def _on_track_click(self, track_index):
+        """Click en track - ASYNC"""
         if 0 <= track_index < len(state.tracks):
             state.current_index = track_index
             StatusBar.instance.text.value = f"● Seleccionado: {state.tracks[track_index].title}"
@@ -245,43 +452,64 @@ class TrackListView:
             await self.update()
 
     async def _toggle_expand(self, track_index):
+        """Toggle expand de secciones - ASYNC"""
         if 0 <= track_index < len(state.tracks):
-            state.tracks[track_index].expanded = not state.tracks[track_index].expanded
+            tracks_list = state.tracks
+            tracks_list[track_index].expanded = not tracks_list[track_index].expanded
+            state.tracks = tracks_list  # Forzar setter
             await self.update()
 
     async def _on_section_click(self, track_index, section_index):
-        if playback.jump_to_section(track_index, section_index):
-            section = state.tracks[track_index].sections[section_index]
-            StatusBar.instance.text.value = f"● ▶ {section.name}"
-            StatusBar.instance.text.color = self.theme.get("accent")
-            self.page.update()
-
-    def _on_drag_start(self, track_index):
-        self.drag_state["dragging_index"] = track_index
-
-    async def _on_drag_accept(self, track_index):
-        start_idx = self.drag_state["dragging_index"]
-        if start_idx is None or start_idx == track_index:
-            return
-        
-        moved_track = state.tracks.pop(start_idx)
-        state.tracks.insert(track_index, moved_track)
-        
-        if state.current_index == start_idx:
-            state.current_index = track_index
-        elif start_idx < state.current_index <= track_index:
-            state.current_index -= 1
-        elif track_index <= state.current_index < start_idx:
-            state.current_index += 1
-        
-        StatusBar.instance.text.value = f"● ✓ Reordenado: {moved_track.title}"
-        StatusBar.instance.text.color = self.theme.get("button_play")
-        
-        await self.update()
-        self.drag_state["dragging_index"] = None
+        """Click en sección - ASYNC"""
+        try:
+            if playback.jump_to_section(track_index, section_index):
+                section = state.tracks[track_index].sections[section_index]
+                StatusBar.instance.text.value = f"● ▶ {section.name}"
+                StatusBar.instance.text.color = self.theme.get("accent")
+                self.page.update()
+        except Exception as e:
+            print(f"[ERROR] _on_section_click: {e}")
 
 # ============================================
-# CONTROL PANEL 
+# UPDATE DEBOUNCER
+# ============================================
+class UpdateDebouncer:
+    """Evita updates demasiado frecuentes"""
+    def __init__(self, min_interval=0.1):
+        self.min_interval = min_interval
+        self.last_update = 0
+        self.pending_update = None
+        self.lock = threading.Lock()
+    
+    def request_update(self, callback):
+        """Solicita un update con debounce"""
+        with self.lock:
+            current_time = time.time()
+            
+            # Si pasó suficiente tiempo, ejecutar inmediatamente
+            if current_time - self.last_update >= self.min_interval:
+                self.last_update = current_time
+                callback()
+            else:
+                # Guardar para ejecutar después
+                self.pending_update = callback
+                
+                # Programar ejecución diferida
+                def execute_pending():
+                    time.sleep(self.min_interval)
+                    with self.lock:
+                        if self.pending_update:
+                            self.pending_update()
+                            self.pending_update = None
+                            self.last_update = time.time()
+                
+                threading.Thread(target=execute_pending, daemon=True).start()
+
+# Crear instancia global
+update_debouncer = UpdateDebouncer(min_interval=0.15)
+
+# ============================================
+# CONTROL PANEL - SIN CAMBIOS SIGNIFICATIVOS
 # ============================================
 class ControlPanel:
     def __init__(self, theme: ThemeManager, page: ft.Page):
@@ -349,7 +577,7 @@ class ControlPanel:
             height=90,
             border_radius=10,
             bgcolor=self.theme.get(color_key),
-            on_click=lambda e: self.page.run_task(on_click, e),  
+            on_click=lambda e: self.page.run_task(on_click, e),
             ink=True,
         )
     
@@ -360,7 +588,7 @@ class ControlPanel:
             height=72,
             border_radius=12,
             bgcolor=self.theme.get("button_nav"),
-            on_click=lambda e: self.page.run_task(on_click, e),  
+            on_click=lambda e: self.page.run_task(on_click, e),
             ink=True,
             alignment=ft.alignment.center,
         )
@@ -389,6 +617,7 @@ class ControlPanel:
             
             if state.is_playing:
                 playback.stop()
+                await asyncio.sleep(0.1)
             
             if playback.play_track(current_idx):
                 track = state.tracks[current_idx]
@@ -461,7 +690,7 @@ class ControlPanel:
             self.page.update()
 
             if playback.scan_all():
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.6)
                 
                 state.current_index = 0 if state.get_track_count() > 0 else -1
                 await TrackListView.instance.update()
@@ -483,12 +712,11 @@ class ControlPanel:
         self.last_nav_time = now
         return True
 
+
 # ============================================
-# DIALOG MANAGER 
+# DIALOG MANAGER - SIN CAMBIOS
 # ============================================
 class DialogManager:
-    """Gestor de diálogos de guardado y carga de setlists"""
-
     def __init__(self, page: ft.Page, theme: ThemeManager):
         self.page = page
         self.theme = theme
@@ -580,20 +808,16 @@ class DialogManager:
                     self.page.update()
                     return
 
-                # Detener reproducción antes de cargar
                 if state.is_playing:
                     playback.stop()
                     await asyncio.sleep(0.2)
 
-                # Cargar datos
                 state.locators = data["locators"]
                 if "tracks" in data:
                     state.tracks = data["tracks"]
 
-                # Reset índice
                 state.current_index = 0 if state.tracks else -1
 
-                # Actualizar UI
                 await TrackListView.instance.update()
 
                 total_sections = sum(len(t.sections) for t in state.tracks)
@@ -660,13 +884,14 @@ class DialogManager:
         self.page.open(dlg)
 
     async def _update_setlist_counter(self):
-        count = len(manager.list_all())
-        if hasattr(self, 'save_counter'):
-            self.save_counter.value = f"💾 {count}"
-            self.page.update()
+            count = len(manager.list_all())
+            if hasattr(self, 'save_counter'):
+                self.save_counter.value = f"💾 {count}"
+                self.page.update()
+
 
 # ============================================
-# FUNCIÓN PRINCIPAL
+# FUNCIÓN PRINCIPAL - CORREGIDA PARA FLET 0.28.3
 # ============================================
 def main(page: ft.Page):
     """Función principal - Thread-safe con async"""
@@ -839,15 +1064,17 @@ def main(page: ft.Page):
                 print(f"[ERROR] update_tempo_display: {e}")
 
     def update_listbox_wrapper():
-        """Wrapper thread-safe para update_listbox desde OSC"""
+        """Wrapper thread-safe para update_listbox desde OSC CON DEBOUNCE"""
         try:
-            # Ejecutar update async desde thread OSC
             if hasattr(page, 'run_task'):
-                page.run_task(track_list.update)
+                # NUEVO: Usar debouncer
+                update_debouncer.request_update(
+                    lambda: page.run_task(track_list.update)
+                )
         except Exception as e:
             if "__uid" not in str(e):
                 print(f"[ERROR] update_listbox: {e}")
-
+                
     def update_metronome_ui_wrapper():
         """Wrapper thread-safe para update_metronome_ui desde OSC"""
         try:
@@ -864,24 +1091,24 @@ def main(page: ft.Page):
     page.update_metronome_ui = update_metronome_ui_wrapper
 
     # ============================================
-    # SCAN INICIAL
+    # SCAN INICIAL - VERSIÓN ROBUSTA
     # ============================================
     async def run_initial_scan():
-        """Ejecuta el scan después de que la UI esté completamente renderizada (versión Flet 0.28)."""
+        """Ejecuta el scan después de que la UI esté completamente renderizada"""
         try:
             print("[INIT] ⏳ UI renderizada, esperando estabilización...")
-            await asyncio.sleep(1.2)  # dar tiempo a Flet
-
+            await asyncio.sleep(1.2)
+            
             print("[INIT] ⟳ Ejecutando scan inicial...")
 
-            # Ejecutar scan en thread para no bloquear la UI
+            # Ejecutar scan en thread separado
             scan_complete = threading.Event()
             scan_success = [False]
 
             def do_scan():
                 try:
                     if playback.scan_all():
-                        time.sleep(0.6)  # esperar a que lleguen datos OSC
+                        time.sleep(0.6)
                         if state.get_track_count() > 0:
                             state.current_index = 0
                             scan_success[0] = True
@@ -899,39 +1126,30 @@ def main(page: ft.Page):
             scan_thread.start()
 
             # Esperar a que termine (timeout 10s)
-            await asyncio.get_event_loop().run_in_executor(None, lambda: scan_complete.wait(timeout=10.0))
+            await asyncio.get_event_loop().run_in_executor(
+                None, 
+                lambda: scan_complete.wait(timeout=10.0)
+            )
 
-            # =====================================================
-            # Actualizar UI solo si hay tracks
-            # =====================================================
+            # Actualizar UI si hay tracks
             if scan_success[0] and state.get_track_count() > 0:
                 print("[INIT] Actualizando UI con tracks...")
-                await asyncio.sleep(0.25)  # pausa para estabilizar
-
-                # FORZAR update de TrackListView en hilo de UI
-                async def do_ui_update():
-                    try:
-                        if TrackListView.instance:
-                            await TrackListView.instance.update()
-                            safe_ui_update_sync(page)
-                            print("[INIT] ✓ UI actualizada correctamente")
-                        else:
-                            print("[INIT] ✗ TrackListView.instance no disponible")
-                    except Exception as e:
-                        print(f"[INIT] Error en do_ui_update: {e}")
-
-                await do_ui_update()
-
+                await asyncio.sleep(0.3)
+                
+                if TrackListView.instance:
+                    await TrackListView.instance.update()
+                    print("[INIT] ✓ UI actualizada correctamente")
+                else:
+                    print("[INIT] ✗ TrackListView.instance no disponible")
             else:
-                print("[INIT] ⚠ No hay tracks para mostrar en UI (scan no exitoso)")
+                print("[INIT] ⚠ No hay tracks para mostrar en UI")
 
         except Exception as e:
             print(f"[ERROR] run_initial_scan: {e}")
             import traceback
             traceback.print_exc()
 
-
-    # CRÍTICO: Programar scan DESPUÉS del primer frame
+    # Programar scan después del primer frame
     print("[INIT] Programando scan inicial...")
     page.run_task(run_initial_scan)
 

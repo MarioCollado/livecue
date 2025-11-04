@@ -57,7 +57,7 @@ desktop.ini
 # Datos locales (opcional)
 # ============================================
 # Si no quieres subir setlists personales:
-SETLIST/*.json
+setlist/data/*.json
 
 # ============================================
 # Archivos de testing
@@ -77,4 +77,4 @@ package-lock.json
 # ============================================
 *.bak
 *.old
-setlist/data/Defem TRIBECA.json
+

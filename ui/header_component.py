@@ -326,6 +326,6 @@ def create_header(page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft
             ],
         ),
         padding=ft.padding.symmetric(horizontal=24, vertical=12),
-        height=75,
+        height=80,
         bgcolor=get_color("bg_secondary"),
     )
