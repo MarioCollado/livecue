@@ -20,7 +20,7 @@ class BeatIndicator:
             content=ft.Row(
                 spacing=16,
                 alignment=ft.MainAxisAlignment.CENTER,
-                controls=[self.circle_1, self.circle_2]
+                controls=[self.circle_2, self.circle_1]
             ),
             padding=ft.padding.symmetric(horizontal=12, vertical=12)
         )

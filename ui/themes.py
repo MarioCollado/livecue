@@ -3,6 +3,31 @@
 
 
 SCHEMES = {
+    
+    "Deep Space": {
+        "bg_main": "#181A1D",
+        "bg_secondary": "#101214",
+        "bg_card": "#1C1F26",
+
+        "text_primary": "#EDEDED",
+        "text_secondary": "#A8A8A8",
+
+        "accent": "#3B91F4",
+        "select_bg": "#0974F1",
+        "select_fg": "#FFFFFF",
+
+        "button_scan": "#5CA5F6",
+        "button_play": "#1A7EF2",
+        "button_stop": "#9FCCFA",
+
+        "button_nav": "#3B91F4",
+        "button_metro": "#7EB8F8",
+        "button_metro_on": "#1A7EF2",
+
+        "button_text": "#FFFFFF",
+        "progress_bar_bg": "#06C000"
+    },
+
     "Mono Dark": {
         "bg_main": "#0D0D0D",
         "bg_secondary": "#1A1A1A",
@@ -27,6 +52,30 @@ SCHEMES = {
         "progress_bar_bg": "#06C000"
     },
 
+    "Crimson Dawn": {
+        "bg_main": "#1A0E0E",
+        "bg_secondary": "#120A0A",
+        "bg_card": "#241010",
+
+        "text_primary": "#F5EAEA",
+        "text_secondary": "#CFAFAF",
+
+        "accent": "#E34242",
+        "select_bg": "#B22A2A",
+        "select_fg": "#FFFFFF",
+
+        "button_scan": "#7A2C2C",
+        "button_play": "#E34242",
+        "button_stop": "#F76B6B",
+
+        "button_nav": "#993333",
+        "button_metro": "#CC4545",
+        "button_metro_on": "#E34242",
+
+        "button_text": "#FFFFFF",
+        "progress_bar_bg": "#06C000"
+    },
+    
     "Red Awakening": {
         "bg_main": "#120000",
         "bg_secondary": "#1C0000",
@@ -48,7 +97,7 @@ SCHEMES = {
         "button_metro_on": "#FF3B3B",
 
         "button_text": "#FFFFFF",
-        "progress_bar_bg": "#FF3B3B"
+        "progress_bar_bg": "#06C000"
     },
 
     "Stage Night": {
@@ -94,30 +143,6 @@ SCHEMES = {
         "button_nav": "#2A6F97",
         "button_metro": "#80C4E0",
         "button_metro_on": "#01497C",
-
-        "button_text": "#FFFFFF",
-        "progress_bar_bg": "#06C000"
-    },
-
-    "Deep Space": {
-        "bg_main": "#181A1D",
-        "bg_secondary": "#101214",
-        "bg_card": "#1C1F26",
-
-        "text_primary": "#EDEDED",
-        "text_secondary": "#A8A8A8",
-
-        "accent": "#3B91F4",
-        "select_bg": "#0974F1",
-        "select_fg": "#FFFFFF",
-
-        "button_scan": "#5CA5F6",
-        "button_play": "#1A7EF2",
-        "button_stop": "#9FCCFA",
-
-        "button_nav": "#3B91F4",
-        "button_metro": "#7EB8F8",
-        "button_metro_on": "#1A7EF2",
 
         "button_text": "#FFFFFF",
         "progress_bar_bg": "#06C000"

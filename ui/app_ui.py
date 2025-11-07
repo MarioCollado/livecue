@@ -439,7 +439,7 @@ class TrackListView:
             traceback.print_exc()
         finally:
             self.drag_state["dragging_index"] = None
-            
+
     # ============================================
     # ASYNC CALLBACKS
     # ============================================
@@ -917,7 +917,7 @@ def main(page: ft.Page):
         return
 
     # Tema y componentes
-    theme = ThemeManager("Mono Dark")
+    theme = ThemeManager("Crimson Dawn")
     page.theme = ft.Theme(color_scheme_seed=theme.get("accent"))
 
     status_bar = StatusBar(theme.get)
@@ -959,7 +959,7 @@ def main(page: ft.Page):
         options=[ft.dropdown.Option(name) for name in ThemeManager.list_themes()],
         text_size=13,
         bgcolor=theme.get("bg_card") + "00",
-        border_color=theme.get("accent") + "00",
+        border_color=theme.get("bg_main") + "00",
         focused_border_color=theme.get("accent") + "00",
         text_style=ft.TextStyle(weight=ft.FontWeight.W_600, color=theme.get("text_primary")),
         content_padding=ft.padding.symmetric(horizontal=8, vertical=8),

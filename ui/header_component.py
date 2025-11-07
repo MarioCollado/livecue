@@ -319,7 +319,7 @@ def create_header(page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft
                             ),
                             padding=ft.padding.symmetric(horizontal=10, vertical=4),
                             border_radius=10,
-                            bgcolor=get_color("accent") + "20",
+                            bgcolor=get_color("bg_main") + "20",
                         ),
                     ],
                 ),
