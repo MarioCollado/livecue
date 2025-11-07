@@ -1,7 +1,6 @@
-# ui/web_server.py
-from flask import Flask, render_template_string, request
+# osc/web_server.py - VERSIÓN COMPLETA CON METRÓNOMO
+from flask import Flask, render_template_string, request, jsonify
 from ui.templates.controller_html import CONTROLLER_HTML
-
 import threading
 import socket
 from core.state import state 
@@ -34,18 +33,15 @@ class WebControllerServer:
                     except Exception as e:
                         print(f"[WEB->WORKER] ❌ Error: {e}")
                     finally:
-                        # Marcar que la UI necesita refrescarse
                         self.state.needs_ui_refresh = True
 
                 threading.Thread(target=worker, args=(index,), daemon=True).start()
-
-                # No redirigir ni cargar nueva página: solo devolver respuesta vacía
                 return ("", 204)
 
             except Exception as e:
                 print(f"[WEB] Error: {e}")
                 return "FAIL", 500
-            
+
         @self.app.route('/stop', methods=['POST'])
         def stop():
             try:
@@ -53,16 +49,49 @@ class WebControllerServer:
                     print("[WEB->WORKER] ⏹ Ejecutando stop en thread")
                     self.playback.stop()
                     self.state.needs_ui_refresh = True
+
                 threading.Thread(target=worker, daemon=True).start()
-                return ("", 204)  # Respuesta vacía OK sin recargar página
+                return ("", 204)
+
             except Exception as e:
                 print(f"[WEB] Error en stop: {e}")
                 return "FAIL", 500
-            
+
+        @self.app.route('/metronome', methods=['POST'])
+        def toggle_metronome():
+            """Toggle metrónomo - Retorna estado nuevo"""
+            try:
+                def worker():
+                    print("[WEB->WORKER] 🎵 Toggle metrónomo en thread")
+                    self.playback.toggle_metronome()
+                    self.state.needs_ui_refresh = True
+
+                threading.Thread(target=worker, daemon=True).start()
+                
+                # Esperar un poquito a que se actualice el estado
+                import time
+                time.sleep(0.05)
+                
+                # Retornar estado actual
+                is_on = self.state.metronome_on
+                print(f"[WEB] Metrónomo ahora: {'ON' if is_on else 'OFF'}")
+                return jsonify({"state": is_on})
+
+            except Exception as e:
+                print(f"[WEB] Error en metronome toggle: {e}")
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route('/metronome/status', methods=['GET'])
+        def metronome_status():
+            """Consultar estado actual del metrónomo"""
+            try:
+                is_on = self.state.metronome_on
+                return jsonify({"state": is_on})
+            except Exception as e:
+                print(f"[WEB] Error obteniendo estado metrónomo: {e}")
+                return jsonify({"error": str(e)}), 500
 
     def start(self):
-        import socket
-
         def get_wifi_ip():
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
