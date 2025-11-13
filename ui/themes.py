@@ -21,7 +21,7 @@ SCHEMES = {
         "button_stop": "#9FCCFA",
 
         "button_nav": "#3B91F4",
-        "button_metro": "#7EB8F8",
+        "button_metro": "#A8A8A8",
         "button_metro_on": "#1A7EF2",
 
         "button_text": "#FFFFFF",

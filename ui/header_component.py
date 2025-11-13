@@ -1,9 +1,12 @@
 # ui/header_component.py
 import flet as ft
 from version_info import APP_VERSION
+from ui.themes import ThemeManager
 import socket
 import subprocess
 import re
+import time
+import threading
 
 
 def get_local_ip():
@@ -80,252 +83,298 @@ def get_tailscale_ip():
     
     return None
 
-
-def create_header(page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft.Text,
-                  save_btn: ft.IconButton, load_btn: ft.IconButton, get_color, 
-                  web_port: int = 5000) -> ft.Container:
-    """
-    Crea el header con información de red (Local + Tailscale).
+class SetTimer:
+    """Temporizador para medir duración del directo"""
     
-    Args:
-        page: Referencia a la página de Flet
-        palette_dropdown: Dropdown para selección de paleta
-        save_counter: Texto que muestra el contador de setlists
-        save_btn: Botón de guardar
-        load_btn: Botón de cargar
-        get_color: Función para obtener colores del tema actual
-        web_port: Puerto del servidor web (default 5000)
+    def __init__(self):
+        self.start_time = None
+        self.elapsed = 0
+        self.is_running = False
+        self._timer_text = None
+        self._update_thread = None
+        self._stop_thread = False
         
-    Returns:
-        Container con el header completo
+    def set_text_ref(self, text_ref):
+        """Asigna la referencia al Text widget"""
+        self._timer_text = text_ref
+        
+    def start(self):
+        """Inicia el temporizador"""
+        if not self.is_running:
+            self.start_time = time.time() - self.elapsed
+            self.is_running = True
+            self._stop_thread = False
+            self._update_thread = threading.Thread(target=self._update_loop, daemon=True)
+            self._update_thread.start()
+            
+    def pause(self):
+        """Pausa el temporizador"""
+        if self.is_running:
+            self.elapsed = time.time() - self.start_time
+            self.is_running = False
+            self._stop_thread = True
+            
+    def reset(self):
+        """Reinicia el temporizador"""
+        self.pause()
+        self.elapsed = 0
+        if self._timer_text:
+            self._timer_text.value = "00:00:00"
+            try:
+                self._timer_text.update()
+            except:
+                pass
+            
+    def _update_loop(self):
+        """Loop de actualización del display"""
+        while not self._stop_thread and self.is_running:
+            if self._timer_text:
+                elapsed = time.time() - self.start_time
+                hours = int(elapsed // 3600)
+                minutes = int((elapsed % 3600) // 60)
+                seconds = int(elapsed % 60)
+                self._timer_text.value = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                try:
+                    self._timer_text.update()
+                except:
+                    pass
+            time.sleep(1)
+            
+    def get_elapsed_formatted(self):
+        """Retorna el tiempo transcurrido formateado"""
+        if self.is_running:
+            elapsed = time.time() - self.start_time
+        else:
+            elapsed = self.elapsed
+        hours = int(elapsed // 3600)
+        minutes = int((elapsed % 3600) // 60)
+        seconds = int(elapsed % 60)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def create_header(
+    page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft.Text,
+    save_btn: ft.IconButton, load_btn: ft.IconButton, get_color,
+    web_port: int = 5000, set_timer: SetTimer = None
+) -> ft.Container:
     """
-    
+    Header con logo y selector a la izquierda, metrónomo centrado y controles a la derecha.
+    """
     local_ip = get_local_ip()
     tailscale_ip = get_tailscale_ip()
-    
-    # Determinar qué mostrar en el header principal
-    if tailscale_ip:
-        primary_ip = tailscale_ip
-        primary_icon = ft.Icons.VPN_LOCK
-        primary_color = get_color("button_play")
-    else:
-        primary_ip = local_ip
-        primary_icon = ft.Icons.WIFI
-        primary_color = get_color("accent")
-    
-    # Crear tooltip text
+    primary_ip = tailscale_ip if tailscale_ip else local_ip
+    primary_icon = ft.Icons.VPN_LOCK if tailscale_ip else ft.Icons.WIFI
+    primary_color = get_color("button_play") if tailscale_ip else get_color("accent")
+
     tooltip_lines = [f"Local WiFi: {local_ip}:{web_port}"]
-    if tailscale_ip:
-        tooltip_lines.append(f"Tailscale: {tailscale_ip}:{web_port}")
+    if tailscale_ip: tooltip_lines.append(f"Tailscale: {tailscale_ip}:{web_port}")
     tooltip_lines.append(f"OSC: {local_ip}:11001")
     tooltip_text = "\n".join(tooltip_lines)
-    
+
+    if set_timer is None:
+        set_timer = SetTimer()
+
+    def on_palette_change(palette_name):
+        """Callback para cambiar paleta desde PopupMenu"""
+        palette_dropdown.value = palette_name
+        palette_dropdown.on_change(None)  # Trigger el cambio
+
+    # Display y controles del temporizador
+    timer_display = ft.Text(
+        "00:00:00",
+        size=20,
+        weight=ft.FontWeight.BOLD,
+        color=get_color("accent"),
+        font_family="DS-Digital",
+        width=120,
+        text_align=ft.TextAlign.CENTER,
+    )
+    set_timer.set_text_ref(timer_display)
+
+    def on_timer_start(e): set_timer.start()
+    def on_timer_pause(e): set_timer.pause()
+    def on_timer_reset(e): set_timer.reset()
+
+    # Bloque unificado del temporizador (display + botones)
+    timer_widget = ft.Container(
+        content=ft.Row(
+            spacing=10,
+            alignment=ft.MainAxisAlignment.CENTER,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                timer_display,
+                ft.IconButton(
+                    icon=ft.Icons.PLAY_ARROW_ROUNDED,
+                    icon_size=14,
+                    icon_color=get_color("button_play"),
+                    tooltip="Iniciar",
+                    on_click=on_timer_start,
+                    style=ft.ButtonStyle(
+                        shape=ft.CircleBorder(),
+                        padding=ft.padding.all(4),
+                        bgcolor=get_color("bg_card") + "AA",
+                    ),
+                ),
+                ft.IconButton(
+                    icon=ft.Icons.PAUSE_ROUNDED,
+                    icon_size=14,
+                    icon_color=get_color("button_stop"),
+                    tooltip="Pausar",
+                    on_click=on_timer_pause,
+                    style=ft.ButtonStyle(
+                        shape=ft.CircleBorder(),
+                        padding=ft.padding.all(4),
+                        bgcolor=get_color("bg_card") + "AA",
+                    ),
+                ),
+                ft.IconButton(
+                    icon=ft.Icons.RESTART_ALT_ROUNDED,
+                    icon_size=14,
+                    icon_color=get_color("text_secondary"),
+                    tooltip="Reiniciar",
+                    on_click=on_timer_reset,
+                    style=ft.ButtonStyle(
+                        shape=ft.CircleBorder(),
+                        padding=ft.padding.all(4),
+                        bgcolor=get_color("bg_card") + "AA",
+                    ),
+                ),
+            ],
+        ),
+        padding=ft.padding.symmetric(horizontal=12, vertical=6),
+        border_radius=12,
+        bgcolor="#0E0E0E",
+        # shadow=ft.BoxShadow(blur_radius=8, color=get_color("button_text") + "15"),
+    )
+
+    # Selector de paleta pequeño y elegante
+    palette_selector= ft.PopupMenuButton(
+        icon=ft.Icons.PALETTE_ROUNDED,
+        icon_size=18,
+        icon_color=get_color("accent"),
+        tooltip=f"Tema: {palette_dropdown.value}",
+        items=[
+            ft.PopupMenuItem(
+                text=name,
+                on_click=lambda e, n=name: on_palette_change(n)
+            )
+            for name in ThemeManager.list_themes()
+        ],
+        style=ft.ButtonStyle(
+            shape=ft.CircleBorder(),
+            padding=ft.padding.all(8),
+            bgcolor=get_color("bg_card") + "AA",
+            overlay_color={
+                ft.ControlState.HOVERED: get_color("accent") + "20",
+            },
+        ),
+    )
+    # Grupo izquierdo: logo + paleta
+    left_group = ft.Row(
+        spacing=10,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        controls=[
+            ft.Container(
+                content=ft.Icon(ft.Icons.AUDIOTRACK_ROUNDED, size=22, color=ft.Colors.WHITE),
+                width=38, height=38, border_radius=19,
+                bgcolor=get_color("accent"),
+                shadow=ft.BoxShadow(blur_radius=6, color=get_color("accent") + "40"),
+            ),
+            palette_selector,
+        ]
+    )
+
+    # Controles de la derecha (guardar, red, versión)
+    right_controls = ft.Row(
+        spacing=10,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        controls=[
+            ft.Container(
+                content=ft.Row(
+                    spacing=4,
+                    controls=[
+                        ft.Icon(ft.Icons.FOLDER_SPECIAL_ROUNDED, size=14, color=get_color("accent")),
+                        ft.Text(
+                            save_counter.value,
+                            size=11,
+                            weight=ft.FontWeight.W_600,
+                            color=get_color("text_primary"),
+                        ),
+                    ],
+                ),
+                padding=ft.padding.symmetric(horizontal=8, vertical=3),
+                border_radius=8,
+                bgcolor=get_color("bg_card") + "40",
+            ),
+            ft.Container(
+                content=ft.Row(
+                    spacing=3,
+                    controls=[
+                        ft.Container(
+                            content=ft.Icon(ft.Icons.SAVE_ROUNDED, size=16, color=ft.Colors.WHITE),
+                            width=28, height=28, border_radius=14,
+                            bgcolor=get_color("accent"),
+                            on_click=save_btn.on_click, ink=True,
+                            tooltip="Guardar Setlist",
+                        ),
+                        ft.Container(
+                            content=ft.Icon(ft.Icons.FOLDER_OPEN_ROUNDED, size=16, color=ft.Colors.WHITE),
+                            width=28, height=28, border_radius=14,
+                            bgcolor=get_color("accent"),
+                            on_click=load_btn.on_click, ink=True,
+                            tooltip="Cargar Setlist",
+                        ),
+                    ],
+                ),
+                padding=2,
+                border_radius=10,
+                bgcolor=get_color("bg_card") + "30",
+            ),
+            ft.Container(
+                content=ft.Row(
+                    spacing=5,
+                    controls=[
+                        ft.Icon(primary_icon, size=15, color=primary_color),
+                        ft.Text(
+                            f"{primary_ip}",
+                            size=11,
+                            weight=ft.FontWeight.W_600,
+                            color=get_color("text_primary"),
+                        ),
+                    ],
+                ),
+                padding=ft.padding.symmetric(horizontal=8, vertical=3),
+                border_radius=10,
+                bgcolor=get_color("bg_card") + "20",
+                border=ft.border.all(1, primary_color + "20"),
+                tooltip=tooltip_text,
+            ),
+            ft.Container(
+                content=ft.Text(
+                    f"v{APP_VERSION}",
+                    size=9,
+                    weight=ft.FontWeight.W_600,
+                    color=get_color("text_secondary"),
+                ),
+                padding=ft.padding.symmetric(horizontal=7, vertical=3),
+                border_radius=8,
+                bgcolor=get_color("bg_main") + "16",
+            ),
+        ],
+    )
+
+    # Estructura principal
     return ft.Container(
         content=ft.Row(
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                # Logo + Título
-                ft.Row(
-                    spacing=14,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    controls=[
-                        # Logo simple
-                        ft.Container(
-                            content=ft.Icon(
-                                ft.Icons.AUDIOTRACK_ROUNDED,
-                                color=ft.Colors.WHITE,
-                                size=24,
-                            ),
-                            width=46,
-                            height=46,
-                            border_radius=23,
-                            bgcolor=get_color("accent"),
-                        ),
-                        # Título
-                        ft.Column(
-                            spacing=2,
-                            controls=[
-                                ft.Text(
-                                    "Ableton Setlist",
-                                    size=20,
-                                    weight=ft.FontWeight.W_700,
-                                    color=get_color("text_primary"),
-                                ),
-                                ft.Text(
-                                    "Live Performance Controller",
-                                    size=11,
-                                    weight=ft.FontWeight.W_500,
-                                    color=get_color("text_secondary"),
-                                    opacity=0.7,
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-                
-                # Centro: Selector de paleta + Network Info
-                ft.Row(
-                    spacing=12,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    controls=[
-                        # Selector de paleta
-                        ft.Container(
-                            content=ft.Row(
-                                spacing=10,
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                controls=[
-                                    ft.Icon(
-                                        ft.Icons.PALETTE_ROUNDED,
-                                        size=18,
-                                        color=get_color("accent"),
-                                        opacity=0.8,
-                                    ),
-                                    ft.Container(
-                                        content=palette_dropdown,
-                                        width=180,
-                                    ),
-                                ],
-                            ),
-                            padding=ft.padding.symmetric(horizontal=14, vertical=8),
-                            border_radius=12,
-                            bgcolor=get_color("bg_card") + "60",
-                        ),
-                        
-                        # Network Info con Tooltip
-                        ft.Container(
-                            content=ft.Row(
-                                spacing=8,
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                controls=[
-                                    ft.Icon(
-                                        primary_icon,
-                                        size=18,
-                                        color=primary_color,
-                                    ),
-                                    ft.Column(
-                                        spacing=1,
-                                        controls=[
-                                            ft.Text(
-                                                primary_ip,
-                                                size=13,
-                                                weight=ft.FontWeight.W_700,
-                                                color=get_color("text_primary"),
-                                            ),
-                                            ft.Text(
-                                                f"Web:{web_port} | OSC:11001",
-                                                size=9,
-                                                weight=ft.FontWeight.W_500,
-                                                color=get_color("text_secondary"),
-                                            ),
-                                        ],
-                                    ),
-                                    # Indicador de Tailscale activo
-                                    ft.Container(
-                                        content=ft.Icon(
-                                            ft.Icons.CHECK_CIRCLE,
-                                            size=12,
-                                            color=get_color("button_play"),
-                                        ),
-                                        visible=tailscale_ip is not None,
-                                    ),
-                                ],
-                            ),
-                            padding=ft.padding.symmetric(horizontal=12, vertical=8),
-                            border_radius=12,
-                            bgcolor=get_color("bg_card") + "80",
-                            border=ft.border.all(1, primary_color + "30"),
-                            tooltip=tooltip_text,
-                        ),
-                    ],
-                ),
-                
-                # Derecha: Controles
-                ft.Row(
-                    spacing=10,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    controls=[
-                        # Contador
-                        ft.Container(
-                            content=ft.Row(
-                                spacing=6,
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                controls=[
-                                    ft.Icon(
-                                        ft.Icons.FOLDER_SPECIAL_ROUNDED,
-                                        size=16,
-                                        color=get_color("accent")
-                                    ),
-                                    ft.Text(
-                                        save_counter.value,
-                                        size=12,
-                                        weight=ft.FontWeight.W_600,
-                                        color=get_color("text_primary"),
-                                    ),
-                                ],
-                            ),
-                            padding=ft.padding.symmetric(horizontal=12, vertical=6),
-                            border_radius=10,
-                            bgcolor=get_color("bg_card") + "60",
-                        ),
-                        
-                        # Botones
-                        ft.Container(
-                            content=ft.Row(
-                                spacing=4,
-                                controls=[
-                                    ft.Container(
-                                        content=ft.Icon(
-                                            ft.Icons.SAVE_ROUNDED,
-                                            size=18,
-                                            color=ft.Colors.WHITE,
-                                        ),
-                                        width=38,
-                                        height=38,
-                                        border_radius=19,
-                                        bgcolor=get_color("accent"),
-                                        on_click=save_btn.on_click,
-                                        ink=True,
-                                        tooltip="Guardar Setlist",
-                                    ),
-                                    ft.Container(
-                                        content=ft.Icon(
-                                            ft.Icons.FOLDER_OPEN_ROUNDED,
-                                            size=18,
-                                            color=ft.Colors.WHITE,
-                                        ),
-                                        width=38,
-                                        height=38,
-                                        border_radius=19,
-                                        bgcolor=get_color("accent"),
-                                        on_click=load_btn.on_click,
-                                        ink=True,
-                                        tooltip="Cargar Setlist",
-                                    ),
-                                ],
-                            ),
-                            padding=4,
-                            border_radius=12,
-                            bgcolor=get_color("bg_card") + "40",
-                        ),
-                        
-                        # Versión
-                        ft.Container(
-                            content=ft.Text(
-                                f"v{APP_VERSION}",
-                                size=10,
-                                weight=ft.FontWeight.W_600,
-                                color=get_color("text_secondary"),
-                            ),
-                            padding=ft.padding.symmetric(horizontal=10, vertical=4),
-                            border_radius=10,
-                            bgcolor=get_color("bg_main") + "20",
-                        ),
-                    ],
-                ),
+                left_group,
+                timer_widget, 
+                right_controls,
             ],
         ),
-        padding=ft.padding.symmetric(horizontal=24, vertical=12),
-        height=80,
+        padding=ft.padding.symmetric(horizontal=18, vertical=8),
+        height=72,
         bgcolor=get_color("bg_secondary"),
     )

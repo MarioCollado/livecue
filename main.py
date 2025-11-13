@@ -66,7 +66,7 @@ def main():
         
         # ===== ARRANCAR INTERFAZ GRÁFICA =====
         print("[INIT] Iniciando interfaz gráfica...\n")
-        ft.app(target=run_ui)
+        ft.app(target=run_ui, assets_dir="assets")        
         
         # La app se bloquea aquí hasta que se cierre la ventana
         print("\n[SHUTDOWN] Ventana cerrada por el usuario")

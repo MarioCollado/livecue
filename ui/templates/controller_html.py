@@ -11,7 +11,7 @@ CONTROLLER_HTML = """
       margin: 0;
       padding: 0;
       height: 100%;
-      min-height: 100dvh; /* ✅ usa viewport dinámico moderno */
+      min-height: 100dvh;
       font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       background: radial-gradient(circle at top left, #0f172a, #1e293b);
       color: #e2e8f0;
@@ -141,15 +141,15 @@ CONTROLLER_HTML = """
       width: 100%;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 20px 14px 40px; /* menos padding inferior */
+      padding: 20px 14px 40px;
       box-sizing: border-box;
-      max-height: 100dvh; /* ✅ evita hueco en scroll móvil */
+      max-height: 100dvh;
     }
 
-    /* GRID DE TRACKS - TAMAÑO FIJO */
+    /* GRID DE TRACKS - UNA COLUMNA EN MÓVIL/TABLET */
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: 1fr; /* Una columna por defecto */
       gap: 16px;
       width: 100%;
       max-width: 500px;
@@ -157,7 +157,6 @@ CONTROLLER_HTML = """
     }
 
     .track-btn {
-      /* TAMAÑO FIJO - CRÍTICO */
       height: 90px;
       min-height: 90px;
       max-height: 90px;
@@ -178,7 +177,6 @@ CONTROLLER_HTML = """
       -webkit-user-select: none;
       user-select: none;
       
-      /* MANEJO DE TEXTO LARGO */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -188,10 +186,9 @@ CONTROLLER_HTML = """
       hyphens: auto;
       line-height: 1.3;
       
-      /* TRUNCAR SI ES MUY LARGO */
       overflow: hidden;
       display: -webkit-box;
-      -webkit-line-clamp: 3; /* Máximo 3 líneas */
+      -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
     }
 
@@ -211,7 +208,7 @@ CONTROLLER_HTML = """
     form {
       width: 100%;
       margin: 0;
-      height: 90px; /* Mismo alto que botón */
+      height: 90px;
     }
 
     /* FOOTER FIJO */
@@ -257,7 +254,7 @@ CONTROLLER_HTML = """
 
       .grid {
         gap: 14px;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        grid-template-columns: 1fr; /* Una columna */
       }
 
       .track-btn {
@@ -302,7 +299,7 @@ CONTROLLER_HTML = """
       .grid {
         gap: 20px;
         max-width: 600px;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: 1fr; /* Una columna */
       }
 
       .track-btn {
@@ -318,7 +315,7 @@ CONTROLLER_HTML = """
       }
     }
 
-    /* PANTALLAS GRANDES */
+    /* PANTALLAS GRANDES - MÚLTIPLES COLUMNAS */
     @media (min-width: 1025px) {
       .header {
         padding: 24px 32px 18px;
@@ -341,7 +338,7 @@ CONTROLLER_HTML = """
       .grid {
         max-width: 700px;
         gap: 22px;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Múltiples columnas en escritorio */
       }
 
       .track-btn {

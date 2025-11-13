@@ -8,7 +8,7 @@ from core.playback import playback
 from setlist.manager import manager
 from ui.themes import ThemeManager
 from ui.components import BeatIndicator, TempoDisplay, StatusBar, MetronomeButton 
-from ui.header_component import create_header
+from ui.header_component import create_header, SetTimer
 from version_info import APP_VERSION
 
 DEBOUNCE_NAV_MS = 300
@@ -275,7 +275,7 @@ class TrackListView:
             ),
             padding=ft.padding.symmetric(horizontal=20, vertical=16),
             border_radius=12,
-            bgcolor=self.theme.get("bg_card") if is_selected else self.theme.get("bg_card") + "60",
+            bgcolor=self.theme.get("bg_card") if is_selected else self.theme.get("bg_card"),
             on_click=self._create_track_click_handler(track_index),  # CORREGIDO
         )
 
@@ -298,7 +298,7 @@ class TrackListView:
                     ),
                     padding=ft.padding.symmetric(horizontal=16, vertical=10),
                     border_radius=8,
-                    bgcolor=self.theme.get("bg_secondary") + "60",
+                    bgcolor=self.theme.get("bg_secondary"),
                     on_click=self._create_section_click_handler(track_index, sec_idx),  # CORREGIDO
                     ink=True,
                 )
@@ -358,21 +358,28 @@ class TrackListView:
     # ============================================
     # DRAG & DROP CALLBACKS
     # ============================================
+# REEMPLAZAR estos 3 métodos en TrackListView
+
     def _on_will_accept_drag(self, e):
         """Valida si se puede aceptar el drop"""
         e.control.content.opacity = 0.5
-        self.page.update()
+        try:
+            e.control.update()
+        except:
+            pass
 
     def _on_drag_leave(self, e):
         """Restaura opacidad cuando sale del drop zone"""
         e.control.content.opacity = 1.0
-        self.page.update()
+        try:
+            e.control.update()
+        except:
+            pass
 
     def _on_drag_start(self, track_index):
         """Inicio de drag - SÍNCRONO"""
         self.drag_state["dragging_index"] = track_index
         print(f"[DRAG] Iniciando drag de track {track_index}")
-
 
     async def _on_drag_accept(self, target_index):
         """Acepta el drop y reordena - ASYNC con protección"""
@@ -390,48 +397,46 @@ class TrackListView:
         try:
             print(f"[DRAG] Reordenando: {start_idx} -> {target_index}")
             
-            # NUEVO: Adquirir lock antes de modificar
-            if not self._update_lock.acquire(blocking=True, timeout=2.0):
-                print("[DRAG] No se pudo adquirir lock, abortando")
+            # Validar índices
+            tracks_list = state.tracks
+            
+            if not (0 <= start_idx < len(tracks_list)):
+                print(f"[DRAG] Error: start_idx {start_idx} fuera de rango")
                 return
             
-            try:
-                # Validar índices
-                tracks_list = state.tracks
-                
-                if not (0 <= start_idx < len(tracks_list)):
-                    print(f"[DRAG] Error: start_idx {start_idx} fuera de rango")
-                    return
-                
-                if not (0 <= target_index < len(tracks_list)):
-                    print(f"[DRAG] Error: target_index {target_index} fuera de rango")
-                    return
-                
-                # Reordenar
-                moved_track = tracks_list.pop(start_idx)
-                tracks_list.insert(target_index, moved_track)
-                state.tracks = tracks_list
-                
-                # Ajustar current_index
-                if state.current_index == start_idx:
-                    state.current_index = target_index
-                elif start_idx < state.current_index <= target_index:
-                    state.current_index -= 1
-                elif target_index <= state.current_index < start_idx:
-                    state.current_index += 1
-                
-                StatusBar.instance.text.value = f"● ✓ Reordenado: {moved_track.title}"
-                StatusBar.instance.text.color = self.theme.get("button_play")
-                
-                # NUEVO: Pequeña pausa antes de actualizar
-                await asyncio.sleep(0.05)
-                
-                # Actualizar UI (ya con lock)
-                await self.update()
-                print(f"[DRAG] ✓ Reordenamiento completado")
-                
-            finally:
-                self._update_lock.release()
+            if not (0 <= target_index < len(tracks_list)):
+                print(f"[DRAG] Error: target_index {target_index} fuera de rango")
+                return
+            
+            # Reordenar
+            moved_track = tracks_list.pop(start_idx)
+            tracks_list.insert(target_index, moved_track)
+            state.tracks = tracks_list
+            
+            # Ajustar current_index
+            if state.current_index == start_idx:
+                state.current_index = target_index
+            elif start_idx < state.current_index <= target_index:
+                state.current_index -= 1
+            elif target_index <= state.current_index < start_idx:
+                state.current_index += 1
+            
+            # ✅ CRÍTICO: Restaurar opacidad de TODOS los controles antes de actualizar
+            for control in self.column.controls:
+                try:
+                    if hasattr(control, 'content') and hasattr(control.content, 'content'):
+                        control.content.content.opacity = 1.0
+                except:
+                    pass
+            
+            StatusBar.instance.text.value = f"● ✓ Reordenado: {moved_track.title}"
+            StatusBar.instance.text.color = self.theme.get("button_play")
+            
+            # ✅ Forzar recreación completa de la lista
+            print("[DRAG] Recreando lista completa...")
+            await self.update()
+            
+            print(f"[DRAG] ✓ Reordenamiento completado")
                 
         except Exception as e:
             print(f"[DRAG] Error: {e}")
@@ -439,7 +444,7 @@ class TrackListView:
             traceback.print_exc()
         finally:
             self.drag_state["dragging_index"] = None
-
+            
     # ============================================
     # ASYNC CALLBACKS
     # ============================================
@@ -908,6 +913,12 @@ def main(page: ft.Page):
         page.spacing = 0
         page.theme_mode = ft.ThemeMode.DARK
 
+        page.fonts = {
+            "DS-Digital": "fonts/DS-DIGI.TTF"  # Ruta relativa a assets/
+        }
+        
+        set_timer = SetTimer()
+
         print("[UI] Creando componentes...")
 
     except Exception as e:
@@ -917,7 +928,7 @@ def main(page: ft.Page):
         return
 
     # Tema y componentes
-    theme = ThemeManager("Crimson Dawn")
+    theme = ThemeManager("Deep Space")
     page.theme = ft.Theme(color_scheme_seed=theme.get("accent"))
 
     status_bar = StatusBar(theme.get)
@@ -975,7 +986,7 @@ def main(page: ft.Page):
             listbox_container.bgcolor = theme.get("bg_card") + "40"
             
             # Recrear header
-            new_header = create_header(page, palette_dropdown, save_counter, save_btn, load_btn, theme.get, web_port=5000)
+            new_header = create_header(page, palette_dropdown, save_counter, save_btn, load_btn, theme.get, web_port=5000, set_timer=set_timer)
             page.controls[0].content.controls[0] = new_header
             
             control_panel.beat_indicator.container.bgcolor = theme.get("bg_card")
@@ -1000,7 +1011,8 @@ def main(page: ft.Page):
         save_btn,
         load_btn,
         theme.get,
-        web_port=5000
+        web_port=5000,
+        set_timer=set_timer
     )
 
     listbox_container = ft.Container(
@@ -1008,7 +1020,7 @@ def main(page: ft.Page):
         expand=True,
         border_radius=12,
         padding=ft.padding.all(18),
-        bgcolor=theme.get("bg_card") + "40",
+        bgcolor=theme.get("bg_card") + "00",
     )
 
     main_row = ft.Row(
