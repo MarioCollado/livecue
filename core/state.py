@@ -1,6 +1,7 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # core/state.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 import threading

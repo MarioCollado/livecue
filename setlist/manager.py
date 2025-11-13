@@ -1,6 +1,7 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # setlist/manager.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 import json
 import time
 from pathlib import Path

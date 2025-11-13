@@ -1,6 +1,22 @@
 # ============================================================================
-# LiveCue - Copyright (c) 2025 Mario Collado Rodríguez
-# Licensed under MIT License - See LICENSE file
+# LiveCue - Ableton Setlist Controller
+# Copyright (c) 2025 Mario Collado Rodríguez. Todos los derechos reservados.
+# 
+# Este software está protegido bajo Creative Commons BY-NC-SA 4.0.
+# 
+# TÉRMINOS PRINCIPALES:
+# - ✓ Uso personal/educativo permitido
+# - ✓ Modificaciones permitidas (deben compartirse igual)
+# - ✗ Uso comercial PROHIBIDO sin licencia
+# - ✗ NO puedes vender este software
+# 
+# Para licencias comerciales contacta: mcolladorgue@gmail.com
+# Licencia completa: https://creativecommons.org/licenses/by-nc-sa/4.0/
+# 
+# Autor: Mario Collado Rodríguez
+# GitHub: https://github.com/MarioCollado/LiveCue
+# Versión: 1.0.0
+# Fecha: Noviembre 2025
 # ============================================================================
 
 # main.py

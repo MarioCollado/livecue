@@ -1,7 +1,4 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-## 📄 Licencia 
-Este proyecto está bajo la Licencia MIT.
-Copyright (c) 2025 Mario Collado Rodríguez
 
 # LiveCue - Ableton Setlist Controller
 
@@ -221,12 +218,32 @@ El `.exe` se generará en `dist/main.exe`
 ### "El servidor web no es accesible desde otros dispositivos"
 - Verifica que tu firewall permita conexiones en el puerto 5000
 - Asegúrate de estar en la misma red WiFi/LAN
+  
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver archivo `LICENSE` para más detalles.
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+Este proyecto está licenciado bajo **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
+
+**Copyright © 2025 Mario Collado Rodríguez. Todos los derechos reservados.**
+
+### ✅ Puedes:
+- Usar el software para fines personales y educativos
+- Modificar y crear versiones derivadas
+- Compartir con otros (con atribución)
+
+### ❌ NO puedes:
+- Usar el software con fines comerciales sin autorización escrita
+- Vender el software o versiones modificadas
+- Eliminar los avisos de copyright
+
+### 📧 Licencias Comerciales
+Para uso comercial, contacta: **mcolladorguez@gmail.com**
+
+Ver archivo [LICENSE](LICENSE) para términos legales completos.
 
 ---
 

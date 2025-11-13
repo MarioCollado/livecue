@@ -1,6 +1,7 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # osc/handlers.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 from core.state import state, Locator, Track, Section
 from osc.client import send_message
 import threading

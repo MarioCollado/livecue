@@ -1,6 +1,7 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # osc/client.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 from pythonosc import udp_client
 from core.constants import LIVE_IP, LIVE_SEND_PORT
 

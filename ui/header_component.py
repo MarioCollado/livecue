@@ -1,9 +1,11 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # ui/header_component.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 import flet as ft
 from version_info import APP_VERSION
 from ui.themes import ThemeManager
+from ui.about_dialog import show_about_dialog
 import socket
 import subprocess
 import re
@@ -271,6 +273,24 @@ def create_header(
             },
         ),
     )
+    
+    # Botón "Acerca de"
+    about_btn = ft.IconButton(
+        icon=ft.Icons.INFO_OUTLINE_ROUNDED,
+        icon_size=18,
+        icon_color=get_color("text_secondary"),
+        tooltip="Acerca de LiveCue",
+        on_click=lambda e: show_about_dialog(page, get_color),
+        style=ft.ButtonStyle(
+            shape=ft.CircleBorder(),
+            padding=ft.padding.all(8),
+            bgcolor=get_color("bg_card") + "AA",
+            overlay_color={
+                ft.ControlState.HOVERED: get_color("accent") + "20",
+            },
+        ),
+    )
+
     # Grupo izquierdo: logo + paleta
     left_group = ft.Row(
         spacing=10,
@@ -362,6 +382,7 @@ def create_header(
                 border_radius=8,
                 bgcolor=get_color("bg_main") + "16",
             ),
+            about_btn,
         ],
     )
 

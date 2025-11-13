@@ -1,6 +1,7 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # core/constants.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 from pathlib import Path
 
 LIVE_IP = "127.0.0.1"

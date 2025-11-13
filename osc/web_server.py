@@ -1,6 +1,7 @@
-# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
-
 # osc/web_server.py
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# NO uso comercial sin autorización - mcolladorguez@gmail.com
+
 from flask import Flask, render_template_string, request, jsonify
 from ui.templates.controller_html import CONTROLLER_HTML
 import threading
