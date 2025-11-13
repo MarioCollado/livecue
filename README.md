@@ -65,6 +65,7 @@ LiveCue/
 │   ├── themes.py               # Paletas de colores
 │   └── templates/
 │       └── controller_html.py  # Template HTML para control web
+│       └── stop_html.py  # Template HTML para stop button
 │
 └── setlist/data/                # Directorio de setlists guardados (JSON)
 ```
