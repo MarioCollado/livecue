@@ -1,4 +1,5 @@
-## 📄 Licencia
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+## 📄 Licencia 
 Este proyecto está bajo la Licencia MIT.
 Copyright (c) 2025 Mario Collado Rodríguez
 
