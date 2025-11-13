@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # osc/server.py
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import ThreadingOSCUDPServer

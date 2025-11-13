@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
+# ui/templates/stop_html.py
 STOP_HTML = """
 <!DOCTYPE html>
 <html lang="es">

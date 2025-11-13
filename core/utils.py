@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # core/utils.py
 import time
 import json

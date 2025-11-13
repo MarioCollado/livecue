@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # core/state.py
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional

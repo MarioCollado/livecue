@@ -1,4 +1,6 @@
-# core/playback.py - VERSIÓN CORREGIDA
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
+# core/playback.py
 """Lógica de reproducción thread-safe"""
 import time
 import threading
@@ -83,7 +85,7 @@ class PlaybackController:
             try:
                 print(f"[PLAYBACK] ▶ Reproduciendo: {track.title}")
                 
-                # Secuencia de reproducción optimizada
+                # Secuencia de reproducción
                 send_message("/live/song/stop_playing", [])
                 time.sleep(0.08)
                 

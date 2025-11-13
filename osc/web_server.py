@@ -1,4 +1,6 @@
-# osc/web_server.py - VERSIÓN COMPLETA CON METRÓNOMO
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
+# osc/web_server.py
 from flask import Flask, render_template_string, request, jsonify
 from ui.templates.controller_html import CONTROLLER_HTML
 import threading

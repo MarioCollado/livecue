@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # osc/handlers.py
 from core.state import state, Locator, Track, Section
 from osc.client import send_message

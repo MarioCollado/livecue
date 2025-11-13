@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # ui/themes.py
 """Paletas de colores unificadas"""
 

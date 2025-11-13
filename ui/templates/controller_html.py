@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # ui/templates/controller_ui.py
 CONTROLLER_HTML = """
 <!DOCTYPE html>

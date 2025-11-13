@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # ui/header_component.py
 import flet as ft
 from version_info import APP_VERSION

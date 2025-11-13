@@ -1,3 +1,8 @@
+# ============================================================================
+# LiveCue - Copyright (c) 2025 Mario Collado Rodríguez
+# Licensed under MIT License - See LICENSE file
+# ============================================================================
+
 # main.py
 import flet as ft
 from flask import Flask, jsonify

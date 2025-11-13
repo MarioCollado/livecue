@@ -1,4 +1,6 @@
-# ui/app_ui.py - VERSIÓN CORREGIDA PARA FLET 0.28.3
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
+# ui/app_ui.py
 import flet as ft
 import time
 import threading

@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Mario Collado Rodríguez - MIT License
+
 # osc/client.py
 from pythonosc import udp_client
 from core.constants import LIVE_IP, LIVE_SEND_PORT
