@@ -1,0 +1,25 @@
+# ============================================================================
+# LiveCue - Ableton Setlist Controller
+# Copyright (c) 2025 Mario Collado Rodríguez
+# Licensed under CC BY-NC-SA 4.0
+# ============================================================================
+
+# Core UI Framework
+flet>=0.28.3
+
+# OSC Communication
+python-osc>=1.8.0
+
+# Web Server for Remote Control
+Flask>=3.0.0
+
+# Image Processing (for UI assets)
+Pillow>=10.0.0
+
+# Optional: For better performance
+# watchdog>=3.0.0
+
+# Development Dependencies (optional)
+# pytest>=7.4.0
+# black>=23.0.0
+# flake8>=6.0.0
