@@ -1,5 +1,5 @@
 # ui/about_dialog.py
-# Copyright (c) 2025 Mario Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 
 """Diálogo 'Acerca de' con información de copyright y licencia"""
 
@@ -239,26 +239,3 @@ def show_about_dialog(page: ft.Page, theme_get_color):
     )
     
     page.open(dialog)
-
-
-# ============================================================================
-# INTEGRACIÓN EN app_ui.py
-# ============================================================================
-
-# En app_ui.py, importa:
-# from ui.about_dialog import show_about_dialog
-
-# Y agrega un botón en el header o menú:
-"""
-about_btn = ft.IconButton(
-    icon=ft.Icons.INFO_OUTLINE_ROUNDED,
-    icon_size=18,
-    icon_color=get_color("text_secondary"),
-    tooltip="Acerca de LiveCue",
-    on_click=lambda e: show_about_dialog(page, theme.get),
-    style=ft.ButtonStyle(
-        shape=ft.CircleBorder(),
-        padding=ft.padding.all(8),
-    ),
-)
-"""
