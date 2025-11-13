@@ -14,7 +14,7 @@ LiveCue es una herramienta profesional para el manejo de setlists y control de A
 ### Control de Setlist
 - **Gestión de Tracks**: Visualización jerárquica de tracks con sus secciones (Intro, Verso, Estribillo, etc.)
 - **Navegación Intuitiva**: Play, Stop, Next, Previous 
-- **Reproducción desde Secciones**: Click en cualquier sección para comenzar desde ese punto exacto
+- **Reproducción desde Secciones**: 🔨 (En progreso) Click en cualquier sección para comenzar desde ese punto exacto
 - **Drag & Drop**: Reordena tracks arrastrando para ajustar el orden del setlist sobre la marcha
 
 ### Comunicación OSC
