@@ -1,111 +1,119 @@
-# Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
 
 Copyright (c) 2025 Mario Collado Rodríguez
 
----
+================================================================================
 
-## LiveCue - Ableton Setlist Controller
-
-Este software está licenciado bajo **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
-
-**Licencia completa**: https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
-
----
-
-## ✅ PERMISOS
-
-Bajo esta licencia, tienes permiso para:
-
-- **Compartir**: Copiar y redistribuir el material en cualquier medio o formato
-- **Adaptar**: Remezclar, transformar y construir sobre el material
-
-El licenciante no puede revocar estas libertades siempre que cumplas con los términos de la licencia.
-
----
-
-## 📋 CONDICIONES
-
-### 🏷️ Atribución (BY)
-Debes dar **crédito apropiado**, proporcionar un enlace a la licencia e **indicar si se realizaron cambios**. Puedes hacerlo de cualquier manera razonable, pero no de forma que sugiera que el licenciante te respalda a ti o tu uso.
-
-**Ejemplo de atribución:**
-```
 LiveCue - Ableton Setlist Controller
-Copyright (c) 2025 Mario Collado Rodríguez
-Licensed under CC BY-NC-SA 4.0
-https://github.com/MarioCollado/LiveCue
-```
 
-### 🚫 No Comercial (NC)
-**NO puedes usar el material con fines comerciales** sin autorización explícita por escrito del autor.
+This work is licensed under the Creative Commons Attribution-NonCommercial-
+ShareAlike 4.0 International License.
 
-**Uso comercial incluye:**
-- Vender el software o versiones modificadas
-- Usar el software en servicios de pago
-- Incluir el software en productos comerciales
-- Usar el software para generar ingresos directos o indirectos
+To view a copy of this license, visit:
+https://creativecommons.org/licenses/by-nc-sa/4.0/
 
-**Excepciones (requieren permiso escrito):**
-- Servicios profesionales de audio/DJ usando LiveCue
-- Integración en productos comerciales
-- Distribución comercial
-- Cualquier uso que genere beneficio económico
+Or send a letter to:
+Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-### 🔄 Compartir Igual (SA)
-Si remezclas, transformas o creas a partir del material, **debes distribuir tus contribuciones bajo la misma licencia** que el original.
+================================================================================
 
----
+PERMISSIONS
 
-## ❌ RESTRICCIONES ADICIONALES
+You are free to:
 
-No puedes aplicar términos legales o medidas tecnológicas que restrinjan legalmente a otros de hacer cualquier cosa que la licencia permita.
+  * Share — copy and redistribute the material in any medium or format
+  * Adapt — remix, transform, and build upon the material
 
----
+The licensor cannot revoke these freedoms as long as you follow the license
+terms.
 
-## ⚖️ EXENCIÓN DE RESPONSABILIDAD
+================================================================================
 
-Este software se proporciona "TAL CUAL", sin garantías de ningún tipo, expresas o implícitas, incluyendo pero no limitándose a garantías de comerciabilidad, idoneidad para un propósito particular y no infracción.
+CONDITIONS
 
-En ningún caso el autor será responsable de cualquier reclamación, daño u otra responsabilidad, ya sea en una acción contractual, extracontractual o de otro tipo, que surja de, fuera de o en conexión con el software o el uso u otros tratos en el software.
+Under the following terms:
 
----
+  * Attribution (BY) — You must give appropriate credit, provide a link to 
+    the license, and indicate if changes were made. You may do so in any 
+    reasonable manner, but not in any way that suggests the licensor endorses 
+    you or your use.
 
-## 📧 LICENCIAS COMERCIALES
+  * NonCommercial (NC) — You may not use the material for commercial purposes
+    without explicit written authorization from the author.
 
-Si deseas usar LiveCue con fines comerciales, contacta al autor para obtener una **licencia comercial personalizada**:
+  * ShareAlike (SA) — If you remix, transform, or build upon the material, 
+    you must distribute your contributions under the same license as the 
+    original.
 
-- **Email**: mcolladorguez@gmail.com
-- **GitHub**: [@MarioCollado](https://github.com/MarioCollado)
+  * No additional restrictions — You may not apply legal terms or 
+    technological measures that legally restrict others from doing anything 
+    the license permits.
 
-Las licencias comerciales pueden incluir:
-- Uso sin restricciones comerciales
-- Soporte técnico prioritario
-- Personalización bajo demanda
-- Integración con tus sistemas
-- Exención de la cláusula "Compartir Igual"
+================================================================================
 
----
+ATTRIBUTION EXAMPLE
 
-## 🔍 VERIFICACIÓN DE LICENCIA
+When using or distributing this software, include:
 
-Para verificar la autenticidad de esta licencia:
-- **Repositorio oficial**: https://github.com/MarioCollado/LiveCue
-- **Hash del commit inicial**: [se genera automáticamente en Git]
-- **Fecha de publicación**: Noviembre 2025
+    LiveCue - Ableton Setlist Controller
+    Copyright (c) 2025 Mario Collado Rodríguez
+    Licensed under CC BY-NC-SA 4.0
+    https://github.com/MarioCollado/LiveCue
 
----
+================================================================================
 
-## 📜 TEXTO LEGAL COMPLETO
+COMMERCIAL USE PROHIBITION
 
-Esta es una versión legible por humanos del Código Legal completo.
+Without explicit written authorization, you MAY NOT:
 
-**Para ver los términos legales completos en español:**
+  - Sell this software or modified versions
+  - Use in commercial products or services
+  - Generate direct or indirect revenue using this software
+  - Integrate into commercial hardware or software
+  - Offer as a paid service (SaaS)
+  - Use in professional audio/DJ services for profit
+
+================================================================================
+
+COMMERCIAL LICENSES
+
+For commercial use, contact the author for a custom commercial license:
+
+  Email:  mcolladorguez@gmail.com
+  GitHub: https://github.com/MarioCollado
+
+Commercial licenses may include:
+  - Unrestricted commercial usage rights
+  - Priority technical support
+  - Custom development and integration
+  - Exemption from ShareAlike clause
+
+================================================================================
+
+DISCLAIMER
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================================
+
+FULL LEGAL TEXT
+
+This is a human-readable summary of (and not a substitute for) the license.
+
+Full legal code (Spanish):
 https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.es
 
-**For the full legal terms in English:**
+Full legal code (English):
 https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 
----
+================================================================================
 
-**Copyright © 2025 Mario Collado Rodríguez. Todos los derechos reservados.**
-**LiveCue™ es marca registrada de Mario Collado Rodríguez**
+Copyright (c) 2025 Mario Collado Rodríguez. All rights reserved.
+LiveCue is a trademark of Mario Collado Rodríguez.
