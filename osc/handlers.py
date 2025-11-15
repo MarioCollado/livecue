@@ -4,6 +4,7 @@
 
 from core.state import state, Locator, Track, Section
 from osc.client import send_message
+from core.logger import log_info, log_error, log_warning, log_debug
 import threading
 from typing import Dict, List, Optional
 
@@ -15,18 +16,19 @@ class OSCHandlers:
         self._lock = threading.RLock()  # Lock para sincronización
         self._processing_cue_points = False
         self._processing_clips = False
+        log_debug("OSCHandlers inicializado", module="OSC")
     
     def handle_cue_points(self, address, *args):
         """Procesa cue points - Thread-safe"""
         with self._lock:
             if self._processing_cue_points:
-                print("[WARN] Ya procesando cue points, ignorando...")
+                log_warning("Ya procesando cue points, ignorando duplicado", module="OSC")
                 return
             
             self._processing_cue_points = True
         
         try:
-            print(f"\n[OSC] ✓ Cue points recibidos: {len(args)//2} locators")
+            log_info(f"📥 Cue points recibidos: {len(args)//2} locators", module="OSC")
             
             # Parsear locators
             raw_locators = []
@@ -39,17 +41,19 @@ class OSCHandlers:
                         beat=args[i + 1]
                     ))
                 except Exception as e:
-                    print(f"[ERROR] Procesando locator {i//2}: {e}")
+                    log_error(f"Error procesando locator {i//2}", module="OSC", exc=e)
                     continue
             
             if not raw_locators:
-                print("[WARN] No se procesaron locators válidos")
+                log_warning("No se procesaron locators válidos", module="OSC")
                 return
             
             # Ordenar y reasignar IDs
             raw_locators.sort(key=lambda x: x.beat)
             for i, loc in enumerate(raw_locators):
                 loc.id = i
+            
+            log_debug(f"Locators ordenados y reasignados: {len(raw_locators)}", module="OSC")
             
             with self._lock:
                 state.locators = raw_locators
@@ -59,15 +63,15 @@ class OSCHandlers:
             self._safe_ui_update('update_listbox')
             
         except Exception as e:
-            print(f"[ERROR] handle_cue_points: {e}")
-            import traceback
-            traceback.print_exc()
+            log_error("Error en handle_cue_points", module="OSC", exc=e)
         finally:
             with self._lock:
                 self._processing_cue_points = False
     
     def _build_track_structure(self, locators: List[Locator]):
         """Construye estructura de tracks - Debe llamarse con lock"""
+        log_debug("Construyendo estructura de tracks...", module="OSC")
+        
         new_tracks = []
         current_track = None
         track_number = 0
@@ -78,7 +82,7 @@ class OSCHandlers:
             if name_upper.startswith("START TRACK"):
                 # Cerrar track anterior
                 if current_track:
-                    print(f"[WARN] Track '{current_track.title}' sin END TRACK")
+                    log_warning(f"Track '{current_track.title}' sin END TRACK", module="OSC")
                     current_track.end = loc.beat
                     new_tracks.append(current_track)
                 
@@ -97,40 +101,44 @@ class OSCHandlers:
                     track_number=track_number,
                     start_locator_id=loc.original_id
                 )
-                print(f"[PARSE] Track #{track_number}: '{title}' @ beat {loc.beat}")
+                log_debug(f"Track #{track_number}: '{title}' @ beat {loc.beat}", module="OSC")
             
             elif name_upper.startswith("END TRACK"):
                 if current_track:
                     current_track.end = loc.beat
                     new_tracks.append(current_track)
-                    print(f"[PARSE] ✓ Track completado: '{current_track.title}'")
+                    log_debug(f"✓ Track completado: '{current_track.title}' ({current_track.end - current_track.start} beats)", module="OSC")
                     current_track = None
             
             elif current_track and not loc.is_click_toggle:
                 # Agregar como sección
                 section = Section(name=loc.name.title(), beat=loc.beat)
                 current_track.add_section(section)
+                log_debug(f"Sección agregada: '{section.name}' a '{current_track.title}'", module="OSC")
         
         # Cerrar último track
         if current_track:
             last_beat = locators[-1].beat if locators else 0
             current_track.end = last_beat
             new_tracks.append(current_track)
+            log_warning(f"Track '{current_track.title}' cerrado automáticamente (sin END TRACK)", module="OSC")
         
         # Actualizar state de forma atómica
         state.tracks = new_tracks
-        print(f"[OSC] ✓ Tracks detectados: {len(new_tracks)}")
+        log_info(f"✓ Estructura construida: {len(new_tracks)} tracks detectados", module="OSC")
         
         # Ajustar current_index si es necesario
         if state.current_index >= len(new_tracks):
+            old_index = state.current_index
             state.current_index = len(new_tracks) - 1 if new_tracks else -1
+            log_debug(f"current_index ajustado: {old_index} → {state.current_index}", module="OSC")
     
     def handle_metronome(self, address, *args):
         """Maneja estado del metrónomo"""
         if args:
             with self._lock:
                 state.metronome_on = bool(int(args[0]))
-            print(f"[OSC] Metrónomo: {'ON' if state.metronome_on else 'OFF'}")
+            log_info(f"🎵 Metrónomo: {'ON' if state.metronome_on else 'OFF'}", module="OSC")
             self._safe_ui_update('update_metronome_ui')
     
     def handle_song_time(self, address, *args):
@@ -147,30 +155,51 @@ class OSCHandlers:
             state.last_triggered_beat = current_beat
             state.current_song_time = args[0]
         
+        # Log solo cada 4 beats para no saturar
+        if current_beat % 4 == 0:
+            log_debug(f"Beat: {current_beat}", module="OSC")
+        
         # Actualizar UI (trigger_pulse y progress son thread-safe)
         self._safe_ui_update('trigger_pulse', current_beat)
     
     def handle_playing_status(self, address, *args):
         """Maneja el estado de reproducción"""
         if args:
+            new_status = bool(int(args[0]))
             with self._lock:
-                state.is_playing = bool(int(args[0]))
-            print(f"[OSC] is_playing: {state.is_playing}")
+                old_status = state.is_playing
+                state.is_playing = new_status
+            
+            # Log solo si cambió
+            if old_status != new_status:
+                log_info(f"🎮 Estado: {'▶ Playing' if new_status else '■ Stopped'}", module="OSC")
     
     def handle_tempo(self, address, *args):
         """Maneja cambios de tempo"""
         if args:
+            new_tempo = float(args[0])
             with self._lock:
-                state.current_tempo = float(args[0])
-            print(f"[OSC] Tempo: {state.current_tempo} BPM")
+                old_tempo = state.current_tempo
+                state.current_tempo = new_tempo
+            
+            # Log solo si cambió significativamente
+            if abs(new_tempo - old_tempo) > 0.1:
+                log_info(f"🎼 Tempo: {new_tempo:.1f} BPM", module="OSC")
+            
             self._safe_ui_update('update_tempo_display')
     
     def handle_time_signature(self, address, *args):
         """Maneja cambios de time signature"""
         if args:
+            new_sig = int(args[0])
             with self._lock:
-                state.time_signature_num = int(args[0])
-            print(f"[OSC] Time signature: {state.time_signature_num}/4")
+                old_sig = state.time_signature_num
+                state.time_signature_num = new_sig
+            
+            # Log solo si cambió
+            if new_sig != old_sig:
+                log_info(f"🎵 Time signature: {new_sig}/4", module="OSC")
+            
             self._safe_ui_update('update_tempo_display')
     
     def handle_beat(self, address, *args):
@@ -179,11 +208,17 @@ class OSCHandlers:
             current_beat = int(args[0])
             with self._lock:
                 state.current_beat = current_beat
+            
+            # Log reducido para evitar spam
+            if current_beat % 8 == 0:
+                log_debug(f"Beat actualizado: {current_beat}", module="OSC")
+            
             self._safe_ui_update('trigger_pulse', current_beat)
     
     def handle_clip_names(self, address, *args):
         """Maneja nombres de clips"""
         if len(args) < 2:
+            log_warning("handle_clip_names: datos insuficientes", module="OSC")
             return
         
         track_index = args[0]
@@ -191,13 +226,14 @@ class OSCHandlers:
         
         with self._lock:
             self._clip_data.setdefault(track_index, {})["names"] = clip_names
-            print(f"[CLIPS] Recibidos {len(clip_names)} nombres para track {track_index}")
+            log_info(f"📋 Clips recibidos: {len(clip_names)} nombres para track {track_index}", module="OSC")
         
         self._try_assign_clips(track_index)
     
     def handle_clip_times(self, address, *args):
         """Maneja tiempos de clips"""
         if len(args) < 2:
+            log_warning("handle_clip_times: datos insuficientes", module="OSC")
             return
         
         track_index = args[0]
@@ -205,7 +241,7 @@ class OSCHandlers:
         
         with self._lock:
             self._clip_data.setdefault(track_index, {})["times"] = clip_times
-            print(f"[CLIPS] Recibidos {len(clip_times)} tiempos para track {track_index}")
+            log_info(f"⏱️  Clips recibidos: {len(clip_times)} tiempos para track {track_index}", module="OSC")
         
         self._try_assign_clips(track_index)
     
@@ -213,7 +249,7 @@ class OSCHandlers:
         """Intenta asignar clips si hay datos completos - Thread-safe"""
         with self._lock:
             if self._processing_clips:
-                print("[WARN] Ya procesando clips, ignorando...")
+                log_warning("Ya procesando clips, ignorando duplicado", module="OSC")
                 return
             
             data = self._clip_data.get(track_index, {})
@@ -221,11 +257,11 @@ class OSCHandlers:
             times = data.get("times")
             
             if not names or not times:
-                print(f"[CLIPS] Datos incompletos para track {track_index}")
+                log_debug(f"Datos incompletos para track {track_index} (esperando más datos)", module="OSC")
                 return
             
             if len(names) != len(times):
-                print(f"[WARN] Desajuste: {len(names)} nombres vs {len(times)} tiempos")
+                log_warning(f"Desajuste de clips: {len(names)} nombres vs {len(times)} tiempos", module="OSC")
                 return
             
             self._processing_clips = True
@@ -233,9 +269,7 @@ class OSCHandlers:
         try:
             self._assign_clips_to_tracks(names, times, track_index)
         except Exception as e:
-            print(f"[ERROR] Asignando clips: {e}")
-            import traceback
-            traceback.print_exc()
+            log_error("Error asignando clips a tracks", module="OSC", exc=e)
         finally:
             with self._lock:
                 self._processing_clips = False
@@ -247,10 +281,10 @@ class OSCHandlers:
         """Asigna clips a tracks - NO limpia secciones existentes"""
         with self._lock:
             if not state.tracks:
-                print("[WARN] No hay tracks disponibles")
+                log_warning("No hay tracks disponibles para asignar clips", module="OSC")
                 return
             
-            print(f"[CLIPS] Asignando {len(names)} clips del track {source_track_index}")
+            log_info(f"🔗 Asignando {len(names)} clips del track {source_track_index}", module="OSC")
             
             assigned_count = 0
             skipped_count = 0
@@ -264,14 +298,14 @@ class OSCHandlers:
                         section = Section(name=name, beat=float(time), time=float(time))
                         track.add_section(section)
                         assigned_count += 1
-                        print(f"[CLIPS] ✓ '{name}' → {track.title}")
+                        log_debug(f"✓ '{name}' → {track.title}", module="OSC")
                     else:
-                        print(f"[CLIPS] ⊘ '{name}' ya existe en {track.title}")
+                        log_debug(f"⊘ '{name}' ya existe en {track.title}", module="OSC")
                 else:
                     skipped_count += 1
-                    print(f"[CLIPS] ✗ '{name}' @ {time} fuera de rango")
+                    log_warning(f"✗ '{name}' @ beat {time} fuera de rango de tracks", module="OSC")
             
-            print(f"[CLIPS] Asignados: {assigned_count}, Omitidos: {skipped_count}")
+            log_info(f"✓ Clips asignados: {assigned_count}, Omitidos: {skipped_count}", module="OSC")
         
         # Actualizar UI
         self._safe_ui_update('update_listbox')
@@ -296,7 +330,7 @@ class OSCHandlers:
             error_msg = str(e)
             # Ignorar errores de objetos eliminados o async
             if "__uid" not in error_msg and "update_async" not in error_msg:
-                print(f"[UI UPDATE ERROR] {method_name}: {e}")
+                log_warning(f"UI update falló para {method_name}: {error_msg}", module="OSC")
                     
     def handle_error(self, address, *args):
         """Maneja errores relevantes"""
@@ -304,7 +338,8 @@ class OSCHandlers:
             # Filtrar errores conocidos/esperados
             msg = str(args)
             if "get/beat" not in msg and "playing_status" not in msg:
-                print(f"[OSC ERROR] {address}: {args}")
+                log_error(f"OSC Error en {address}: {args}", module="OSC")
 
 # Instancia global
 handlers = OSCHandlers()
+log_info("✓ Instancia global de OSCHandlers creada", module="OSC")
