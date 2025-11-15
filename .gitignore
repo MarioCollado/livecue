@@ -1,4 +1,7 @@
-# .gitignore para LiveCue
+# ============================================================================
+# .gitignore para LiveCue - Ableton Setlist Controller
+# Copyright (c) 2025 Mario Collado Rodríguez
+# ============================================================================
 
 # ============================================
 # Python
@@ -7,75 +10,287 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.pyo
+*.pyd
 .Python
 
-# Entornos virtuales
+# Distribución / Empaquetado
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# ============================================
+# Entornos Virtuales
+# ============================================
 venv/
 env/
 ENV/
-.venv
-
-# ============================================
-# PyInstaller / Build
-# ============================================
-build/
-dist/
-*.spec
-*.egg-info/
-*.egg
+.venv/
+.env
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
 
 # ============================================
 # Flet
 # ============================================
 .flet/
+*.flet
+
+# ============================================
+# Logs y Sistema de Logging
+# ============================================
+# Logs generados por core/logger.py
+logs/
+*.log
+*.log.*
+
+# Excepto la estructura base
+!logs/.gitkeep
+
+# Archivos temporales de logs
+*.tmp
+*.temp
+*.swp
 
 # ============================================
 # IDEs / Editores
 # ============================================
+# VSCode
 .vscode/
+*.code-workspace
+
+# PyCharm
 .idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
 *~
-.DS_Store
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+.\#*
 
 # ============================================
 # Sistema Operativo
 # ============================================
+# Windows
 Thumbs.db
-desktop.ini
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
 
 # ============================================
-# Logs y temporales
+# Datos Locales de Usuario
 # ============================================
-*.log
-*.tmp
-*.temp
-
-# ============================================
-# Datos locales (opcional)
-# ============================================
-# Si no quieres subir setlists personales:
+# Setlists personales
 setlist/data/*.json
 
+# Mantener la estructura de directorios
+!setlist/data/.gitkeep
+
+# Configuraciones locales personalizadas
+config.local.py
+settings.local.json
+*.local
+
 # ============================================
-# Archivos de testing
+# Testing y Coverage
 # ============================================
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.cache
+nosetests.xml
+test-results/
+junit/
 
 # ============================================
-# Node (si usas alguna tool de JS)
+# Documentación
+# ============================================
+# Documentación generada
+docs/_build/
+site/
+.mkdocs_cache/
+
+# ============================================
+# Node.js (si usas herramientas JS)
 # ============================================
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 package-lock.json
+yarn.lock
+
+# ============================================
+# Bases de Datos
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# Certificados y Claves
+# ============================================
+*.pem
+*.key
+*.cert
+*.crt
+secrets.json
+.env.local
+.env.*.local
+
+# ============================================
+# Backups y Temporales
+# ============================================
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.save
+*.tmp
+~*
+
+# ============================================
+# Archivos de Testing y Debug
+# ============================================
+test_*.py
+debug_*.py
+scratch.py
+playground.py
+test_network.py
+debug.log
+
+# ============================================
+# Archivos de Compilación
+# ============================================
+*.pyc
+*.pyo
+*.so
+*.dll
+*.exe
+*.out
+*.app
+
+# ============================================
+# Jupyter Notebooks
+# ============================================
+.ipynb_checkpoints/
+*.ipynb
+profile_default/
+ipython_config.py
+
+# ============================================
+# Mypy
+# ============================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # ============================================
 # Otros
 # ============================================
-*.bak
-*.old
+# Archivos de locks
+*.lock
 
-test_network.py
+# Archivos de configuración sensibles
+credentials.json
+token.json
+auth.json
+
+# Capturas de pantalla temporales (mantener las de docs/)
+screenshots/temp/
+*.png.tmp
+
+# Archivos de profiling
+*.prof
+*.lprof
+
+# ============================================
+# Específicos de LiveCue
+# ============================================
+# Sesiones de debug
+debug_session_*/
+
+# Exports temporales
+exports/temp/
+
+# Cache de la aplicación
+.app_cache/
+cache/
+
+# Archivos de configuración de desarrollo
+dev_config.py
+local_settings.py
