@@ -2,7 +2,7 @@
 
 # LiveCue - Ableton Setlist Controller
 
-LiveCue es una herramienta profesional para el manejo de setlists y control de Ableton Live en tiempo real. Desarrollada en Python, ofrece una interfaz moderna y funcionalidades avanzadas para músicos, DJs y técnicos de sonido.
+LiveCue es una herramienta profesional para el manejo de setlists y control de Ableton Live en tiempo real. Desarrollada en Python, ofrece una interfaz moderna y funcionalidades avanzadas para músicos y técnicos de sonido.
 
 ---
 
