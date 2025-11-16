@@ -40,7 +40,7 @@ jobs:
       - name: Compilar con Nuitka (Windows)
         if: runner.os == 'Windows'
         run: |
-          python -m nuitka --standalone --mingw64 --assume-yes-for-downloads --windows-console-mode=disable --output-filename=LiveCue.exe --windows-icon-from-ico=icono.ico --include-data-dir=assets=assets --include-data-files=LICENSE=LICENSE --include-data-files=README.md=README.md --include-data-files=COPYRIGHT.md=COPYRIGHT.md --include-module=flet --include-module=flask --include-module=jinja2 --include-module=werkzeug --nofollow-import-to=matplotlib --nofollow-import-to=numpy --nofollow-import-to=pandas --nofollow-import-to=scipy --nofollow-import-to=tkinter main.py
+          python -m nuitka --standalone --mingw64 --assume-yes-for-downloads --output-filename=LiveCue.exe --windows-icon-from-ico=icono.ico --include-data-dir=assets=assets --include-data-files=LICENSE=LICENSE --include-data-files=README.md=README.md --include-data-files=COPYRIGHT.md=COPYRIGHT.md --include-module=flet --include-module=flask --include-module=jinja2 --include-module=werkzeug --nofollow-import-to=matplotlib --nofollow-import-to=numpy --nofollow-import-to=pandas --nofollow-import-to=scipy --nofollow-import-to=tkinter main.py
 
       - name: Compilar con Nuitka (macOS)
         if: runner.os == 'macOS'
