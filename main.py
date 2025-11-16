@@ -33,6 +33,7 @@ from core.state import state
 from core.logger import get_logger, log_info, log_error, log_warning, log_debug
 import threading
 import sys
+import os
 import signal
 import atexit
 
@@ -43,6 +44,24 @@ shutdown_complete = False
 
 # Inicializar logger al inicio
 logger = get_logger()
+
+def get_assets_path():
+    """Obtiene la ruta correcta de assets según si es ejecutable o no"""
+    if getattr(sys, 'frozen', False):
+        # Ejecutable compilado (PyInstaller, Nuitka, etc.)
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller
+            base_path = sys._MEIPASS
+        else:
+            # Nuitka u otros
+            base_path = os.path.dirname(sys.executable)
+        assets = os.path.join(base_path, 'assets')
+    else:
+        # Modo desarrollo
+        assets = "assets"
+    
+    log_debug(f"Assets path: {assets}")
+    return assets
 
 def shutdown_server():
     """Cierra el servidor OSC de forma segura"""
@@ -88,6 +107,25 @@ def main():
     log_info("© 2025 Mario Collado Rodríguez")
     log_info("=" * 80)
     
+    # Detectar si estamos en ejecutable compilado
+    if getattr(sys, 'frozen', False):
+        log_info("🔧 Ejecutando desde ejecutable compilado")
+        
+        # CRÍTICO: Deshabilitar instalación de paquetes de Flet
+        try:
+            import flet.utils.pip as flet_pip
+            # Hacer que la función de instalación no haga nada
+            flet_pip.install_flet_package = lambda *args, **kwargs: None
+            log_debug("✓ Deshabilitada instalación automática de paquetes Flet")
+        except Exception as e:
+            log_warning(f"No se pudo parchear flet.utils.pip: {e}")
+        
+        # Configurar variables de entorno
+        os.environ["FLET_HIDE_CONSOLE"] = "1"
+        os.environ["FLET_VIEW"] = "flet_app"
+    else:
+        log_info("🔧 Ejecutando en modo desarrollo")
+    
     # Registrar manejador de señales
     signal.signal(signal.SIGINT, signal_handler)
     
@@ -126,10 +164,28 @@ def main():
         
         # ===== ARRANCAR INTERFAZ GRÁFICA =====
         log_info("🎨 Iniciando interfaz gráfica Flet...")
-        log_debug("Assets dir: assets/")
         
-        # La app se bloquea aquí hasta que se cierre la ventana
-        ft.app(target=run_ui, assets_dir="assets")        
+        # Obtener ruta correcta de assets
+        assets_path = get_assets_path()
+        log_debug(f"Assets directory: {assets_path}")
+        
+        # Verificar que assets existe
+        if not os.path.exists(assets_path):
+            log_warning(f"⚠️  Directorio assets no encontrado: {assets_path}")
+        
+        # Iniciar Flet con configuración para ejecutables
+        if getattr(sys, 'frozen', False):
+            # Modo ejecutable compilado - no especificar view
+            ft.app(
+                target=run_ui,
+                assets_dir=assets_path
+            )
+        else:
+            # Modo desarrollo
+            ft.app(
+                target=run_ui,
+                assets_dir=assets_path
+            )
         
         log_info("🚪 Ventana cerrada por el usuario")
         

@@ -62,7 +62,7 @@ def safe_ui_update_sync(page_ref):
     return False
     
 # ============================================
-# TRACK LIST VIEW - CORREGIDO
+# TRACK LIST VIEW
 # ============================================
 class TrackListView:
     instance = None
@@ -526,7 +526,7 @@ class UpdateDebouncer:
 update_debouncer = UpdateDebouncer(min_interval=0.15)
 
 # ============================================
-# CONTROL PANEL - SIN CAMBIOS SIGNIFICATIVOS
+# CONTROL PANEL
 # ============================================
 class ControlPanel:
     def __init__(self, theme: ThemeManager, page: ft.Page):
@@ -731,7 +731,7 @@ class ControlPanel:
 
 
 # ============================================
-# DIALOG MANAGER - SIN CAMBIOS
+# DIALOG MANAGER
 # ============================================
 class DialogManager:
     def __init__(self, page: ft.Page, theme: ThemeManager):
@@ -926,7 +926,7 @@ def main(page: ft.Page):
         page.theme_mode = ft.ThemeMode.DARK
 
         page.fonts = {
-            "DS-Digital": "fonts/DS-DIGI.TTF"  # Ruta relativa a assets/
+            "DS-Digital": "fonts/DS-DIGI.TTF"
         }
         
         set_timer = SetTimer()

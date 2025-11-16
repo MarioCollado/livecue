@@ -14,6 +14,11 @@ __pycache__/
 *.pyd
 .Python
 
+# ============================================
+release/
+build_exe.py
+icono.png
+
 # Distribución / Empaquetado
 build/
 develop-eggs/
@@ -36,6 +41,10 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+buildN.py
+*.Zip
+main.dist/
+main.build/
 
 # ============================================
 # Entornos Virtuales
@@ -49,6 +58,8 @@ env.bak/
 venv.bak/
 pip-log.txt
 pip-delete-this-directory.txt
+venv3_12/
+.venv3_12/
 
 # ============================================
 # Flet
