@@ -11,8 +11,11 @@ from pathlib import Path
 def get_app_data_dir() -> Path:
     """Obtiene el directorio base de la aplicación según el entorno"""
     
-    # Si es ejecutable, usar AppData
-    if getattr(sys, 'frozen', False):
+    # Modo forzado por variable de entorno
+    force_dev = os.environ.get('LIVECUE_DEV_MODE', '').lower() == 'true'
+    
+    # Si es ejecutable Y NO está en modo dev forzado, usar AppData
+    if getattr(sys, 'frozen', False) and not force_dev:
         if sys.platform == 'win32':
             # Windows: %APPDATA%\LiveCue
             appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
@@ -39,9 +42,13 @@ APP_DATA_DIR = get_app_data_dir()
 SETLISTS_DIR = APP_DATA_DIR / "setlist" / "data"
 SETLISTS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Configuración de red
+LIVE_IP = "127.0.0.1"          # IP de Ableton Live (localhost)
+LIVE_SEND_PORT = 11000         # Puerto al que enviamos (Ableton)
+
 # Puertos OSC
-OSC_SEND_PORT = 11000      # Puerto al que enviamos (Ableton)
-CLIENT_LISTEN_PORT = 11001  # Puerto en el que escuchamos
+OSC_SEND_PORT = 11000          # Puerto al que enviamos (Ableton) - alias de LIVE_SEND_PORT
+CLIENT_LISTEN_PORT = 11001     # Puerto en el que escuchamos
 
 # Puerto Flask para control remoto
 FLASK_PORT = 5000
