@@ -153,32 +153,28 @@ def check_disk_space():
         return True  # Continuar si no se puede verificar
 
 def check_write_permissions():
-    """Verifica que se puede escribir en el directorio actual"""
+    """Verifica que se puede escribir en AppData"""
     try:
-        if getattr(sys, 'frozen', False):
-            base_path = os.path.dirname(sys.executable)
-        else:
-            base_path = os.getcwd()
+        app_data = get_app_data_path()
         
         # Intentar crear un archivo de prueba
-        test_file = os.path.join(base_path, '.write_test')
+        test_file = os.path.join(app_data, '.write_test')
         try:
             with open(test_file, 'w') as f:
                 f.write('test')
             os.remove(test_file)
-            log_debug("✓ Permisos de escritura verificados")
+            log_debug("✓ Permisos de escritura verificados en AppData")
             return True
         except Exception as e:
             log_error("=" * 80)
-            log_error("❌ ERROR: Sin permisos de escritura")
+            log_error("❌ ERROR: Sin permisos de escritura en AppData")
             log_error("=" * 80)
             log_error("")
-            log_error(f"No se puede escribir en: {base_path}")
+            log_error(f"No se puede escribir en: {app_data}")
+            log_error(f"Error: {e}")
             log_error("")
-            log_error("SOLUCIONES:")
-            log_error("1. Ejecuta como administrador (click derecho → Ejecutar como administrador)")
-            log_error("2. Mueve LiveCue a tu carpeta de usuario (Documentos, Escritorio)")
-            log_error("3. No ejecutes desde carpetas protegidas (Program Files, System32)")
+            log_error("SOLUCIÓN:")
+            log_error("Contacta con el administrador del sistema")
             log_error("=" * 80)
             log_error("")
             return False
@@ -187,17 +183,14 @@ def check_write_permissions():
         return True
 
 def check_required_folders():
-    """Crea carpetas necesarias si no existen"""
+    """Crea carpetas necesarias en AppData"""
     try:
-        if getattr(sys, 'frozen', False):
-            base_path = os.path.dirname(sys.executable)
-        else:
-            base_path = os.getcwd()
+        app_data = get_app_data_path()
         
         folders = ['logs', 'setlist', 'setlist/data']
         
         for folder in folders:
-            folder_path = os.path.join(base_path, folder)
+            folder_path = os.path.join(app_data, folder)
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
                 log_debug(f"✓ Carpeta creada: {folder}")
@@ -229,6 +222,43 @@ def main():
     if not check_required_folders():
         input("\nPresiona Enter para salir...")
         return 1
+    
+    # ===== VERIFICAR LICENCIA =====
+    from core.license import get_license_manager
+    
+    license_mgr = get_license_manager()
+    is_valid, message, days_remaining = license_mgr.check_license()
+    
+    log_info(f"📜 {message}")
+    
+    if not is_valid:
+        log_error("=" * 80)
+        log_error("⏰ PERIODO DE PRUEBA EXPIRADO")
+        log_error("=" * 80)
+        log_error("")
+        log_error("Gracias por probar LiveCue durante 14 días.")
+        log_error("")
+        purchase_info = license_mgr.get_purchase_info()
+        log_error("Para continuar usando LiveCue, adquiere una licencia:")
+        log_error(f"  📧 Email: {purchase_info['email']}")
+        log_error(f"  🌐 Web: {purchase_info['website']}")
+        log_error(f"  💰 Precio: {purchase_info['price']}")
+        log_error("")
+        log_error(f"Tu ID de hardware: {purchase_info['hardware_id']}")
+        log_error("(Proporciona este ID al comprar)")
+        log_error("=" * 80)
+        log_error("")
+        input("Presiona Enter para salir...")
+        return 1
+    
+    # Mostrar aviso si quedan pocos días
+    if 0 < days_remaining <= 3:
+        log_warning("=" * 80)
+        log_warning(f"⚠️  ¡ATENCIÓN! Tu periodo de prueba expira en {days_remaining} días")
+        log_warning("=" * 80)
+        purchase_info = license_mgr.get_purchase_info()
+        log_warning(f"Adquiere tu licencia en: {purchase_info['email']}")
+        log_warning("")
     
     # Detectar si estamos en ejecutable compilado
     if getattr(sys, 'frozen', False):
