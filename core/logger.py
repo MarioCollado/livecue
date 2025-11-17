@@ -8,17 +8,47 @@ Organiza logs por fecha y sesión con rotación automática
 
 import logging
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 import traceback
 
 
+def get_logs_base_dir() -> Path:
+    """Obtiene el directorio base para logs según el entorno"""
+    
+    # Si es ejecutable, usar AppData
+    if getattr(sys, 'frozen', False):
+        if sys.platform == 'win32':
+            # Windows: %APPDATA%\LiveCue\logs
+            appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+            base = Path(appdata) / 'LiveCue' / 'logs'
+        elif sys.platform == 'darwin':
+            # macOS: ~/Library/Application Support/LiveCue/logs
+            base = Path.home() / 'Library' / 'Application Support' / 'LiveCue' / 'logs'
+        else:
+            # Linux: ~/.local/share/LiveCue/logs
+            base = Path.home() / '.local' / 'share' / 'LiveCue' / 'logs'
+    else:
+        # Modo desarrollo: carpeta local
+        base = Path('logs')
+    
+    # Crear directorio si no existe
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
 class LiveCueLogger:
     """Logger centralizado para LiveCue con gestión de sesiones"""
     
-    def __init__(self, base_dir: str = "logs"):
-        self.base_dir = Path(base_dir)
+    def __init__(self, base_dir: str = None):
+        # Usar AppData automáticamente si es ejecutable
+        if base_dir is None:
+            self.base_dir = get_logs_base_dir()
+        else:
+            self.base_dir = Path(base_dir)
+        
         self.session_start = datetime.now()
         self.session_id = self.session_start.strftime("%Y%m%d_%H%M%S")
         
@@ -40,7 +70,7 @@ class LiveCueLogger:
         self.main_logger.info("=" * 80)
         self.main_logger.info(f"🚀 LiveCue - Nueva sesión iniciada")
         self.main_logger.info(f"📅 Fecha: {self.session_start.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.main_logger.info(f"📁 Sesión ID: {self.session_id}")
+        self.main_logger.info(f"🆔 Sesión ID: {self.session_id}")
         self.main_logger.info(f"💾 Logs guardados en: {self.session_dir}")
         self.main_logger.info("=" * 80)
     
