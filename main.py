@@ -97,6 +97,43 @@ def signal_handler(sig, frame):
     cleanup_and_exit()
     sys.exit(0)
 
+def check_disk_space():
+    """Verifica que haya suficiente espacio en disco"""
+    import shutil
+    
+    try:
+        # Obtener espacio libre en el disco donde está el ejecutable
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+        else:
+            base_path = os.getcwd()
+        
+        # Obtener espacio libre en MB
+        stat = shutil.disk_usage(base_path)
+        free_mb = stat.free / (1024 * 1024)
+        
+        log_debug(f"Espacio libre en disco: {free_mb:.2f} MB")
+        
+        # Requerir al menos 100 MB libres
+        if free_mb < 100:
+            log_error("=" * 80)
+            log_error("❌ ERROR: Espacio en disco insuficiente")
+            log_error("=" * 80)
+            log_error("")
+            log_error(f"Espacio disponible: {free_mb:.2f} MB")
+            log_error("Espacio requerido: 100 MB")
+            log_error("")
+            log_error("SOLUCIÓN:")
+            log_error("Libera al menos 100 MB de espacio en tu disco")
+            log_error("=" * 80)
+            log_error("")
+            return False
+        
+        return True
+    except Exception as e:
+        log_warning(f"No se pudo verificar espacio en disco: {e}")
+        return True  # Continuar si no se puede verificar
+
 def main():
     """Función principal de la aplicación"""
     global osc_server, server_thread
@@ -107,22 +144,48 @@ def main():
     log_info("© 2025 Mario Collado Rodríguez")
     log_info("=" * 80)
     
+    # Verificar espacio en disco
+    if not check_disk_space():
+        input("\nPresiona Enter para salir...")
+        return 1
+    
     # Detectar si estamos en ejecutable compilado
     if getattr(sys, 'frozen', False):
         log_info("🔧 Ejecutando desde ejecutable compilado")
         
-        # CRÍTICO: Deshabilitar instalación de paquetes de Flet
+        # CRÍTICO: Deshabilitar instalación de paquetes de Flet de múltiples formas
         try:
+            # Método 1: Parchear flet.utils.pip
             import flet.utils.pip as flet_pip
-            # Hacer que la función de instalación no haga nada
             flet_pip.install_flet_package = lambda *args, **kwargs: None
-            log_debug("✓ Deshabilitada instalación automática de paquetes Flet")
+            log_debug("✓ Parcheado flet.utils.pip.install_flet_package")
         except Exception as e:
             log_warning(f"No se pudo parchear flet.utils.pip: {e}")
+        
+        try:
+            # Método 2: Parchear ensure_flet_desktop_package_installed
+            import flet.utils.pip as flet_pip
+            flet_pip.ensure_flet_desktop_package_installed = lambda *args, **kwargs: None
+            log_debug("✓ Parcheado flet.utils.pip.ensure_flet_desktop_package_installed")
+        except Exception as e:
+            log_warning(f"No se pudo parchear ensure_flet_desktop: {e}")
+        
+        try:
+            # Método 3: Monkey patch sys.frozen para que Flet lo detecte
+            import flet
+            if hasattr(flet, 'utils'):
+                if hasattr(flet.utils, 'pip'):
+                    # Reemplazar todas las funciones de instalación
+                    flet.utils.pip.install_flet_package = lambda *args, **kwargs: None
+                    flet.utils.pip.ensure_flet_desktop_package_installed = lambda *args, **kwargs: None
+                    log_debug("✓ Parcheado completo de flet.utils.pip")
+        except Exception as e:
+            log_warning(f"Parche adicional falló: {e}")
         
         # Configurar variables de entorno
         os.environ["FLET_HIDE_CONSOLE"] = "1"
         os.environ["FLET_VIEW"] = "flet_app"
+        os.environ["FLET_FORCE_EMBEDDED"] = "1"
     else:
         log_info("🔧 Ejecutando en modo desarrollo")
     
@@ -190,19 +253,50 @@ def main():
         log_info("🚪 Ventana cerrada por el usuario")
         
     except OSError as e:
-        if e.errno == 10048 or "address already in use" in str(e).lower():
+        err = str(e).lower()
+
+        # Puerto ocupado
+        if e.errno == 10048 or "address already in use" in err:
             log_error("=" * 80)
             log_error("❌ ERROR: Puerto OSC ya está en uso")
             log_error("=" * 80)
             log_error("")
             log_error("SOLUCIONES:")
             log_error("1. Cierra otras instancias de LiveCue")
-            log_error("2. Windows: taskkill /F /IM python.exe")
-            log_error("3. Linux/Mac: killall python")
+            log_error("2. Windows: taskkill /F /IM LiveCue.exe /F")
+            log_error("3. Windows: taskkill /F /IM python.exe")
             log_error("4. Cambia CLIENT_LISTEN_PORT en core/constants.py")
             log_error("=" * 80)
             log_error("")
             return 1
+
+        # Firewall / permisos / WinError 10013
+        elif e.errno == 10013 or "permission denied" in err or "forbidden" in err:
+            log_error("=" * 80)
+            log_error("❌ ERROR: Windows está bloqueando la comunicación OSC")
+            log_error("        (WinError 10013 - Permiso denegado)")
+            log_error("=" * 80)
+            log_error("")
+            log_error("CAUSAS COMUNES:")
+            log_error(" • El Firewall de Windows está bloqueando LiveCue")
+            log_error(" • El puerto 11001 requiere permisos de red")
+            log_error(" • El ejecutable no tiene permisos suficientes")
+            log_error("")
+            log_error("SOLUCIONES:")
+            log_error(" 1. Abre el Firewall de Windows → Permitir una app")
+            log_error("    → Añade LiveCue.exe y habilita 'Privada' y 'Pública'")
+            log_error("")
+            log_error(" 2. O permite manualmente los puertos:")
+            log_error("    Puerto OSC salida  → 11000")
+            log_error("    Puerto OSC entrada → 11001")
+            log_error("")
+            log_error(" 3. Ejecuta LiveCue como administrador (clic derecho → Ejecutar como admin)")
+            log_error("")
+            log_error(" 4. Si usas antivirus tipo Avast/AVG/Bitdefender, marca LiveCue como aplicación permitida.")
+            log_error("=" * 80)
+            log_error("")
+            return 1
+
         else:
             log_error(f"Error OSC crítico: {e}", exc=e)
             return 1
@@ -226,5 +320,12 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    try:
+        exit_code = main()
+        sys.exit(exit_code)
+    except Exception as e:
+        print(f"\n❌ Error crítico: {e}")
+        import traceback
+        traceback.print_exc()
+        input("\nPresiona Enter para salir...")
+        sys.exit(1)
