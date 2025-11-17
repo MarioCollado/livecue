@@ -45,6 +45,24 @@ shutdown_complete = False
 # Inicializar logger al inicio
 logger = get_logger()
 
+def get_app_data_path():
+    """Obtiene la ruta de AppData para guardar datos persistentes"""
+    if sys.platform == 'win32':
+        # Windows: %APPDATA%\LiveCue
+        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        app_path = os.path.join(appdata, 'LiveCue')
+    elif sys.platform == 'darwin':
+        # macOS: ~/Library/Application Support/LiveCue
+        app_path = os.path.expanduser('~/Library/Application Support/LiveCue')
+    else:
+        # Linux: ~/.local/share/LiveCue
+        app_path = os.path.expanduser('~/.local/share/LiveCue')
+    
+    # Crear directorio si no existe
+    os.makedirs(app_path, exist_ok=True)
+    log_debug(f"App data path: {app_path}")
+    return app_path
+
 def get_assets_path():
     """Obtiene la ruta correcta de assets según si es ejecutable o no"""
     if getattr(sys, 'frozen', False):
@@ -134,6 +152,61 @@ def check_disk_space():
         log_warning(f"No se pudo verificar espacio en disco: {e}")
         return True  # Continuar si no se puede verificar
 
+def check_write_permissions():
+    """Verifica que se puede escribir en el directorio actual"""
+    try:
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+        else:
+            base_path = os.getcwd()
+        
+        # Intentar crear un archivo de prueba
+        test_file = os.path.join(base_path, '.write_test')
+        try:
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            log_debug("✓ Permisos de escritura verificados")
+            return True
+        except Exception as e:
+            log_error("=" * 80)
+            log_error("❌ ERROR: Sin permisos de escritura")
+            log_error("=" * 80)
+            log_error("")
+            log_error(f"No se puede escribir en: {base_path}")
+            log_error("")
+            log_error("SOLUCIONES:")
+            log_error("1. Ejecuta como administrador (click derecho → Ejecutar como administrador)")
+            log_error("2. Mueve LiveCue a tu carpeta de usuario (Documentos, Escritorio)")
+            log_error("3. No ejecutes desde carpetas protegidas (Program Files, System32)")
+            log_error("=" * 80)
+            log_error("")
+            return False
+    except Exception as e:
+        log_warning(f"No se pudo verificar permisos: {e}")
+        return True
+
+def check_required_folders():
+    """Crea carpetas necesarias si no existen"""
+    try:
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+        else:
+            base_path = os.getcwd()
+        
+        folders = ['logs', 'setlist', 'setlist/data']
+        
+        for folder in folders:
+            folder_path = os.path.join(base_path, folder)
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+                log_debug(f"✓ Carpeta creada: {folder}")
+        
+        return True
+    except Exception as e:
+        log_error(f"❌ No se pudieron crear carpetas necesarias: {e}")
+        return False
+
 def main():
     """Función principal de la aplicación"""
     global osc_server, server_thread
@@ -144,8 +217,16 @@ def main():
     log_info("© 2025 Mario Collado Rodríguez")
     log_info("=" * 80)
     
-    # Verificar espacio en disco
+    # Verificaciones previas
     if not check_disk_space():
+        input("\nPresiona Enter para salir...")
+        return 1
+    
+    if not check_write_permissions():
+        input("\nPresiona Enter para salir...")
+        return 1
+    
+    if not check_required_folders():
         input("\nPresiona Enter para salir...")
         return 1
     
@@ -253,50 +334,19 @@ def main():
         log_info("🚪 Ventana cerrada por el usuario")
         
     except OSError as e:
-        err = str(e).lower()
-
-        # Puerto ocupado
-        if e.errno == 10048 or "address already in use" in err:
+        if e.errno == 10048 or "address already in use" in str(e).lower():
             log_error("=" * 80)
             log_error("❌ ERROR: Puerto OSC ya está en uso")
             log_error("=" * 80)
             log_error("")
             log_error("SOLUCIONES:")
             log_error("1. Cierra otras instancias de LiveCue")
-            log_error("2. Windows: taskkill /F /IM LiveCue.exe /F")
-            log_error("3. Windows: taskkill /F /IM python.exe")
+            log_error("2. Windows: taskkill /F /IM python.exe")
+            log_error("3. Linux/Mac: killall python")
             log_error("4. Cambia CLIENT_LISTEN_PORT en core/constants.py")
             log_error("=" * 80)
             log_error("")
             return 1
-
-        # Firewall / permisos / WinError 10013
-        elif e.errno == 10013 or "permission denied" in err or "forbidden" in err:
-            log_error("=" * 80)
-            log_error("❌ ERROR: Windows está bloqueando la comunicación OSC")
-            log_error("        (WinError 10013 - Permiso denegado)")
-            log_error("=" * 80)
-            log_error("")
-            log_error("CAUSAS COMUNES:")
-            log_error(" • El Firewall de Windows está bloqueando LiveCue")
-            log_error(" • El puerto 11001 requiere permisos de red")
-            log_error(" • El ejecutable no tiene permisos suficientes")
-            log_error("")
-            log_error("SOLUCIONES:")
-            log_error(" 1. Abre el Firewall de Windows → Permitir una app")
-            log_error("    → Añade LiveCue.exe y habilita 'Privada' y 'Pública'")
-            log_error("")
-            log_error(" 2. O permite manualmente los puertos:")
-            log_error("    Puerto OSC salida  → 11000")
-            log_error("    Puerto OSC entrada → 11001")
-            log_error("")
-            log_error(" 3. Ejecuta LiveCue como administrador (clic derecho → Ejecutar como admin)")
-            log_error("")
-            log_error(" 4. Si usas antivirus tipo Avast/AVG/Bitdefender, marca LiveCue como aplicación permitida.")
-            log_error("=" * 80)
-            log_error("")
-            return 1
-
         else:
             log_error(f"Error OSC crítico: {e}", exc=e)
             return 1

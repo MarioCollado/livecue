@@ -7,7 +7,7 @@
 import json
 import time
 from pathlib import Path
-from core.constants import SETLISTS_DIR
+from core.constants import SETLISTS_DIR  # ← Ya usa AppData automáticamente
 from core.state import Track, Section, Locator
 from core.logger import log_info, log_error, log_warning, log_debug
 
