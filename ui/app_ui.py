@@ -544,6 +544,34 @@ class ControlPanel:
         self.next_btn = self._create_nav_btn(ft.Icons.SKIP_NEXT_ROUNDED, self._on_next)
         self.scan_btn = self._create_button("SCAN", ft.Icons.SEARCH_ROUNDED, self._on_scan, "button_scan")
 
+        # ===== NUEVO: SCAN con spinner =====
+        self.scan_btn = self._create_scan_button()
+        self.scan_progress_bar = ft.ProgressBar(
+            width=220,
+            height=4,
+            visible=False,
+            color=theme.get("accent"),
+            bgcolor=theme.get("bg_secondary")
+        )
+        self.scan_status_text = ft.Text(
+            "",
+            size=11,
+            color=theme.get("accent"),
+            visible=False,
+            text_align=ft.TextAlign.CENTER,
+            weight=ft.FontWeight.W_500
+        )
+        
+        scan_section = ft.Column(
+            spacing=6,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                self.scan_btn,
+                self.scan_progress_bar,
+                self.scan_status_text
+            ]
+        )
+
         self.container = ft.Column(
             spacing=10,
             controls=[
@@ -570,7 +598,7 @@ class ControlPanel:
                             self.play_btn,
                             self.stop_btn,
                             ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[self.prev_btn, self.next_btn]),
-                            self.scan_btn
+                            scan_section
                         ]
                     ),
                     border_radius=12,
@@ -579,6 +607,7 @@ class ControlPanel:
                 )
             ]
         )
+
 
     def _create_button(self, text, icon, on_click, color_key):
         return ft.Container(
@@ -700,34 +729,166 @@ class ControlPanel:
         except Exception as ex:
             print(f"[ERROR] _on_prev: {ex}")
 
-    async def _on_scan(self, e):
-        try:
-            StatusBar.instance.text.value = "● ⟳ Escaneando Ableton..."
-            StatusBar.instance.text.color = self.theme.get("button_scan")
-            self.page.update()
-
-            if playback.scan_all():
-                await asyncio.sleep(0.6)
-                
-                state.current_index = 0 if state.get_track_count() > 0 else -1
-                await TrackListView.instance.update()
-                
-                StatusBar.instance.text.value = f"● ✓ Scan completo: {state.get_track_count()} tracks"
-                StatusBar.instance.text.color = self.theme.get("button_play")
-                self.page.update()
-            else:
-                StatusBar.instance.text.value = "● ✗ Error en scan"
-                StatusBar.instance.text.color = self.theme.get("button_stop")
-                self.page.update()
-        except Exception as ex:
-            print(f"[ERROR] _on_scan: {ex}")
-
     def _check_nav_debounce(self) -> bool:
         now = time.time()
         if now - self.last_nav_time < DEBOUNCE_NAV_MS / 1000:
             return False
         self.last_nav_time = now
         return True
+
+    def _create_scan_button(self):
+        """Crea el botón SCAN con spinner"""
+        # Spinner (oculto por defecto)
+        self.scan_spinner = ft.ProgressRing(
+            width=18,
+            height=18,
+            stroke_width=2.5,
+            visible=False,
+            color=ft.Colors.WHITE
+        )
+        
+        # Icono (visible por defecto)
+        self.scan_icon = ft.Icon(
+            ft.Icons.SEARCH_ROUNDED, 
+            size=24, 
+            color=ft.Colors.WHITE,
+            visible=True
+        )
+        
+        # Texto
+        self.scan_text = ft.Text(
+            "SCAN", 
+            size=16, 
+            weight=ft.FontWeight.BOLD, 
+            color=ft.Colors.WHITE
+        )
+        
+        return ft.Container(
+            content=ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=10,
+                controls=[
+                    ft.Stack(
+                        width=24,
+                        height=24,
+                        controls=[
+                            self.scan_icon,
+                            self.scan_spinner
+                        ]
+                    ),
+                    self.scan_text
+                ]
+            ),
+            width=220,
+            height=90,
+            border_radius=10,
+            bgcolor=self.theme.get("button_scan"),
+            on_click=lambda e: self.page.run_task(self._on_scan, e),
+            ink=True,
+        )
+    
+    async def _on_scan(self, e):
+        """Escanea tracks desde Ableton CON FEEDBACK VISUAL"""
+        try:
+            # PASO 1: Activar modo scanning
+            state.is_scanning = True
+            self._update_scan_ui("Iniciando escaneo...", 0, scanning=True)
+            await asyncio.sleep(0.3)
+            
+            # PASO 2: Conectando con Ableton
+            self._update_scan_ui("Conectando con Ableton Live...", 15, scanning=True)
+            await asyncio.sleep(0.3)
+            
+            # PASO 3: Detectando locators
+            self._update_scan_ui("Detectando locators...", 35, scanning=True)
+            await asyncio.sleep(0.2)
+            
+            # PASO 4: Ejecutar scan real
+            self._update_scan_ui("Procesando tracks...", 60, scanning=True)
+            
+            # Ejecutar scan en thread separado para no bloquear UI
+            scan_success = await asyncio.get_event_loop().run_in_executor(
+                None,
+                playback.scan_all
+            )
+            
+            if scan_success:
+                # PASO 5: Procesando secciones
+                self._update_scan_ui("Identificando secciones...", 85, scanning=True)
+                await asyncio.sleep(0.4)
+                
+                # PASO 6: Finalizando
+                self._update_scan_ui("Finalizando...", 95, scanning=True)
+                await asyncio.sleep(0.2)
+                
+                # Actualizar índice
+                state.current_index = 0 if state.get_track_count() > 0 else -1
+                
+                # Actualizar lista
+                await TrackListView.instance.update()
+                
+                # PASO 7: Completado
+                track_count = state.get_track_count()
+                self._update_scan_ui(f"✓ {track_count} tracks encontrados", 100, scanning=True)
+                
+                StatusBar.instance.text.value = f"● ✓ Scan completo: {track_count} tracks"
+                StatusBar.instance.text.color = self.theme.get("button_play")
+                
+                # Mostrar mensaje de éxito 1.5 segundos
+                await asyncio.sleep(1.5)
+                
+            else:
+                # Error en scan
+                self._update_scan_ui("✗ Error en escaneo", 0, scanning=True)
+                StatusBar.instance.text.value = "● ✗ Error en scan"
+                StatusBar.instance.text.color = self.theme.get("button_stop")
+                await asyncio.sleep(2)
+            
+        except Exception as ex:
+            print(f"[ERROR] _on_scan: {ex}")
+            import traceback
+            traceback.print_exc()
+            
+            self._update_scan_ui("✗ Error crítico", 0, scanning=True)
+            StatusBar.instance.text.value = f"● ✗ Error: {str(ex)}"
+            StatusBar.instance.text.color = self.theme.get("button_stop")
+            await asyncio.sleep(2)
+            
+        finally:
+            # Siempre restaurar UI
+            state.is_scanning = False
+            self._update_scan_ui("", 0, scanning=False)
+            
+            # Ocultar status text después de 2 segundos
+            await asyncio.sleep(2)
+            self.scan_status_text.visible = False
+            self.page.update()
+
+    def _update_scan_ui(self, message: str, progress: int, scanning: bool = True):
+        """Actualiza la UI del botón SCAN"""
+        try:
+            if scanning:
+                # Modo scanning
+                self.scan_icon.visible = False
+                self.scan_spinner.visible = True
+                self.scan_text.value = "Escaneando..."
+                self.scan_btn.disabled = True
+                self.scan_progress_bar.visible = True
+                self.scan_progress_bar.value = progress / 100
+                self.scan_status_text.visible = True
+                self.scan_status_text.value = message
+                self.scan_status_text.color = self.theme.get("accent")
+            else:
+                # Modo normal
+                self.scan_icon.visible = True
+                self.scan_spinner.visible = False
+                self.scan_text.value = "SCAN"
+                self.scan_btn.disabled = False
+                self.scan_progress_bar.visible = False
+            
+            self.page.update()
+        except Exception as e:
+            print(f"[ERROR] _update_scan_ui: {e}")
 
 
 # ============================================
@@ -1115,7 +1276,7 @@ def main(page: ft.Page):
     page.update_metronome_ui = update_metronome_ui_wrapper
 
     # ============================================
-    # SCAN INICIAL - VERSIÓN ROBUSTA
+    # SCAN INICIAL - VERSIÓN ROBUSTA CON FEEDBACK VISUAL
     # ============================================
     async def run_initial_scan():
         """Ejecuta el scan después de que la UI esté completamente renderizada"""
@@ -1123,12 +1284,28 @@ def main(page: ft.Page):
             print("[INIT] ⏳ UI renderizada, esperando estabilización...")
             await asyncio.sleep(1.2)
             
-            print("[INIT] ⟳ Ejecutando scan inicial...")
-
+            print("[INIT] ⟳ Ejecutando scan inicial con feedback visual...")
+            
+            # PASO 1: Activar modo scanning
+            state.is_scanning = True
+            control_panel._update_scan_ui("Iniciando escaneo inicial...", 0, scanning=True)
+            await asyncio.sleep(0.3)
+            
+            # PASO 2: Conectando
+            control_panel._update_scan_ui("Conectando con Ableton Live...", 15, scanning=True)
+            await asyncio.sleep(0.3)
+            
+            # PASO 3: Detectando locators
+            control_panel._update_scan_ui("Detectando locators...", 35, scanning=True)
+            await asyncio.sleep(0.2)
+            
+            # PASO 4: Procesando (inicio del scan real)
+            control_panel._update_scan_ui("Procesando tracks...", 50, scanning=True)
+            
             # Ejecutar scan en thread separado
             scan_complete = threading.Event()
             scan_success = [False]
-
+            
             def do_scan():
                 try:
                     if playback.scan_all():
@@ -1145,35 +1322,88 @@ def main(page: ft.Page):
                     print(f"[ERROR] do_scan: {e}")
                 finally:
                     scan_complete.set()
-
+            
             scan_thread = threading.Thread(target=do_scan, daemon=True)
             scan_thread.start()
-
+            
             # Esperar a que termine (timeout 10s)
             await asyncio.get_event_loop().run_in_executor(
                 None, 
                 lambda: scan_complete.wait(timeout=10.0)
             )
-
+            
+            # PASO 5: Identificando secciones
+            if scan_success[0]:
+                control_panel._update_scan_ui("Identificando secciones...", 75, scanning=True)
+                await asyncio.sleep(0.3)
+            
+            # PASO 6: Finalizando
+            control_panel._update_scan_ui("Finalizando...", 90, scanning=True)
+            await asyncio.sleep(0.2)
+            
             # Actualizar UI si hay tracks
             if scan_success[0] and state.get_track_count() > 0:
                 print("[INIT] Actualizando UI con tracks...")
-                await asyncio.sleep(0.3)
+                
+                control_panel._update_scan_ui("Actualizando interfaz...", 95, scanning=True)
+                await asyncio.sleep(0.2)
                 
                 if TrackListView.instance:
                     await TrackListView.instance.update()
                     print("[INIT] ✓ UI actualizada correctamente")
+                    
+                    # PASO 7: Éxito
+                    track_count = state.get_track_count()
+                    control_panel._update_scan_ui(f"✓ {track_count} tracks encontrados", 100, scanning=True)
+                    
+                    StatusBar.instance.text.value = f"● ✓ Scan inicial completo: {track_count} tracks"
+                    StatusBar.instance.text.color = theme.get("button_play")
+                    page.update()
+                    
+                    # Mostrar mensaje de éxito 2 segundos
+                    await asyncio.sleep(2)
                 else:
                     print("[INIT] ✗ TrackListView.instance no disponible")
+                    control_panel._update_scan_ui("✗ Error en UI", 0, scanning=True)
+                    await asyncio.sleep(2)
             else:
                 print("[INIT] ⚠ No hay tracks para mostrar en UI")
-
+                control_panel._update_scan_ui("⚠ No se detectaron tracks", 0, scanning=True)
+                
+                StatusBar.instance.text.value = "● ⚠ Sin tracks detectados"
+                StatusBar.instance.text.color = theme.get("text_secondary")
+                page.update()
+                
+                await asyncio.sleep(2)
+                
         except Exception as e:
             print(f"[ERROR] run_initial_scan: {e}")
             import traceback
             traceback.print_exc()
-
-    # Programar scan después del primer frame
+            
+            # Mostrar error en UI
+            try:
+                control_panel._update_scan_ui(f"✗ Error: {str(e)[:30]}", 0, scanning=True)
+                StatusBar.instance.text.value = "● ✗ Error en scan inicial"
+                StatusBar.instance.text.color = theme.get("button_stop")
+                page.update()
+                await asyncio.sleep(2)
+            except:
+                pass
+        
+        finally:
+            # SIEMPRE restaurar UI
+            state.is_scanning = False
+            control_panel._update_scan_ui("", 0, scanning=False)
+            
+            # Ocultar status text después de 1 segundo
+            await asyncio.sleep(1)
+            try:
+                control_panel.scan_status_text.visible = False
+                page.update()
+            except:
+                pass
+                            
     print("[INIT] Programando scan inicial...")
     page.run_task(run_initial_scan)
 

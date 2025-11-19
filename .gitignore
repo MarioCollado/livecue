@@ -61,6 +61,13 @@ pip-delete-this-directory.txt
 venv3_12/
 .venv3_12/
 
+# Environment variables
+.env
+.env.local
+
+# Keep example
+!.env.example
+
 # ============================================
 # Flet
 # ============================================
@@ -305,3 +312,5 @@ cache/
 # Archivos de configuración de desarrollo
 dev_config.py
 local_settings.py
+tests/__init__.py
+tests/conftest.py

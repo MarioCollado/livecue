@@ -90,6 +90,12 @@ class AppState:
 
         # Señal para que la UI (Flet) sepa que debe refrescar
         self._needs_ui_refresh = False
+
+        # Señal para el state de escaneo
+        self.is_scanning = False
+        self.scan_progress = 0  # 0-100
+        self.scan_status = ""  # Mensaje de estado
+        self.scan_error = None  # Para capturar errores
         
         log_debug("AppState inicializado", module="Main")
 
@@ -330,4 +336,8 @@ class AppState:
 
 # Instancia global
 state = AppState()
+
+# Exportar la clase para testing
+__all__ = ['state', 'AppState']  # ← Añade esto
+
 log_info("✓ Instancia global de AppState creada", module="Main")
