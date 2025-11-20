@@ -1162,8 +1162,17 @@ def main(page: ft.Page):
             new_header = create_header(page, palette_dropdown, save_counter, save_btn, load_btn, theme.get, web_port=5000, set_timer=set_timer)
             page.controls[0].content.controls[0] = new_header
             
+            # Actualizar colores del panel
+            control_panel.play_btn.bgcolor = theme.get("button_play")
+            control_panel.stop_btn.bgcolor = theme.get("button_stop")
+            control_panel.prev_btn.bgcolor = theme.get("button_nav")
+            control_panel.next_btn.bgcolor = theme.get("button_nav")
+            control_panel.scan_btn.bgcolor = theme.get("button_scan")
+
+            # Otros elementos dependientes del tema
             control_panel.beat_indicator.container.bgcolor = theme.get("bg_card")
             control_panel.tempo_display.text.color = theme.get("text_primary")
+            control_panel.scan_status_text.color = theme.get("accent")
             
             StatusBar.instance.text.value = f"● Paleta: {theme.current_name}"
             StatusBar.instance.text.color = theme.get("accent")
