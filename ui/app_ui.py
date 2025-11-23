@@ -21,6 +21,7 @@ from setlist.manager import manager
 from ui.themes import ThemeManager
 from ui.components import BeatIndicator, TempoDisplay, StatusBar, MetronomeButton 
 from ui.header_component import create_header, SetTimer
+from ui.welcome_dialog import show_welcome_dialog
 from version_info import APP_VERSION
 
 DEBOUNCE_NAV_MS = 300
@@ -1415,5 +1416,15 @@ def main(page: ft.Page):
                             
     print("[INIT] Programando scan inicial...")
     page.run_task(run_initial_scan)
+
+    # ============================================
+    # MOSTRAR DIÁLOGO DE BIENVENIDA
+    # ============================================
+    # Mostrar después de que la UI esté lista
+    async def show_welcome():
+        await asyncio.sleep(0.5)  # Esperar a que la UI se renderice
+        show_welcome_dialog(page, theme.get, on_accept_callback=None)
+
+    page.run_task(show_welcome)
 
     print("[INIT] ✓ App lista - scan programado...\n")
