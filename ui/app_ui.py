@@ -22,9 +22,10 @@ from ui.themes import ThemeManager
 from ui.components import BeatIndicator, TempoDisplay, StatusBar, MetronomeButton 
 from ui.header_component import create_header, SetTimer
 from ui.welcome_dialog import show_welcome_dialog
-from version_info import APP_VERSION
+from core.logger import log_info, log_error, log_warning, log_debug
+# from version_info import APP_VERSION
 
-DEBOUNCE_NAV_MS = 300
+DEBOUNCE_NAV_MS = 300   
 
 # ============================================
 # SAFE UI UPDATE - SYNC VERSION
@@ -268,7 +269,7 @@ class TrackListView:
                             ft.IconButton(
                                 icon=ft.Icons.KEYBOARD_ARROW_DOWN if not is_expanded else ft.Icons.KEYBOARD_ARROW_UP,
                                 icon_size=18,
-                                on_click=self._create_toggle_expand_handler(track_index),  # CORREGIDO
+                                on_click=self._create_toggle_expand_handler(track_index),  
                                 visible=has_sections,
                                 icon_color=self.theme.get("accent"),
                             ),
@@ -289,7 +290,7 @@ class TrackListView:
             padding=ft.padding.symmetric(horizontal=20, vertical=16),
             border_radius=12,
             bgcolor=self.theme.get("bg_card") if is_selected else self.theme.get("bg_card"),
-            on_click=self._create_track_click_handler(track_index),  # CORREGIDO
+            on_click=self._create_track_click_handler(track_index),  
         )
 
     def _create_sections(self, track_index, track):
@@ -312,7 +313,7 @@ class TrackListView:
                     padding=ft.padding.symmetric(horizontal=16, vertical=10),
                     border_radius=8,
                     bgcolor=self.theme.get("bg_secondary"),
-                    on_click=self._create_section_click_handler(track_index, sec_idx),  # CORREGIDO
+                    on_click=self._create_section_click_handler(track_index, sec_idx),  
                     ink=True,
                 )
             )

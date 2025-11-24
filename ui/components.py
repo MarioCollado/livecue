@@ -5,6 +5,7 @@
 import flet as ft
 import time
 import threading
+from core.logger import log_error
 
 class BeatIndicator:
     def __init__(self, get_color_fn):
@@ -86,7 +87,7 @@ class TempoDisplay:
             if page_update_fn and callable(page_update_fn):
                 page_update_fn()
         except Exception as e:
-            print(f"[ERROR] TempoDisplay.update: {e}")
+            log_error(f"[ERROR] TempoDisplay.update: {e}", "UI", e)
 
 
 class StatusBar:
@@ -116,7 +117,7 @@ class MetronomeButton:
             self.is_on = is_on
             self._update_style()
         except Exception as e:
-            print(f"[ERROR] MetronomeButton.set_state: {e}")
+            log_error(f"[ERROR] MetronomeButton.set_state: {e}", "UI", e)
     
     def _update_style(self):
         """Actualiza el estilo del botón"""
@@ -128,4 +129,4 @@ class MetronomeButton:
                 bgcolor=self.get_color("button_metro_on" if self.is_on else "button_metro")
             )
         except Exception as e:
-            print(f"[ERROR] MetronomeButton._update_style: {e}")
+            log_error(f"[ERROR] MetronomeButton._update_style: {e}", "UI", e)

@@ -2,152 +2,224 @@
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
-"""Paletas de colores unificadas"""
+"""Paletas de colores unificadas - Diseño Bento Moderno"""
 
 SCHEMES = {
     
     "Deep Space": {
-        "bg_main": "#181A1D",
-        "bg_secondary": "#101214",
-        "bg_card": "#1C1F26",
-
-        "text_primary": "#EDEDED",
-        "text_secondary": "#A8A8A8",
-
-        "accent": "#3B91F4",
-        "select_bg": "#0974F1",
+        # Backgrounds - Azul oscuro profundo con gradación sutil
+        "bg_main": "#0A0E14",
+        "bg_secondary": "#0D1117",
+        "bg_card": "#161B22",
+        
+        # Text - Alto contraste para legibilidad
+        "text_primary": "#F0F6FC",
+        "text_secondary": "#8B949E",
+        
+        # Accent - Azul brillante para destacar
+        "accent": "#58A6FF",
+        "accent_hover": "#79C0FF",
+        "select_bg": "#1F6FEB",
         "select_fg": "#FFFFFF",
-
-        "button_scan": "#5CA5F6",
-        "button_play": "#1A7EF2",
-        "button_stop": "#9FCCFA",
-
-        "button_nav": "#3B91F4",
-        "button_metro": "#A8A8A8",
-        "button_metro_on": "#1A7EF2",
-
+        
+        # Buttons - Paleta azul coherente
+        "button_scan": "#388BFD",
+        "button_play": "#3FB950",
+        "button_stop": "#F85149",
+        
+        "button_nav": "#21262D",
+        "button_nav_hover": "#30363D",
+        "button_metro": "#484F58",
+        "button_metro_hover": "#6E7681",
+        "button_metro_on": "#58A6FF",
+        
         "button_text": "#FFFFFF",
-        "progress_bar_bg": "#06C000"
+        "progress_bar_bg": "#3FB950",
+        
+        # Effects - Para sombras y overlays
+        "shadow": "#00000040",
+        "overlay": "#0D111780",
+        "border": "#30363D"
     },
 
     "Mono Dark": {
+        # Backgrounds - Escala de grises elegante
         "bg_main": "#0D0D0D",
         "bg_secondary": "#1A1A1A",
-        "bg_card": "#2A2A2A",
-
-        "text_primary": "#E8E8E8",
-        "text_secondary": "#B0B0B0",
-
-        "accent": "#D4AF37",
-        "select_bg": "#3C3C3C",
+        "bg_card": "#242424",
+        
+        # Text - Contraste óptimo
+        "text_primary": "#ECECEC",
+        "text_secondary": "#A0A0A0",
+        
+        # Accent - Dorado refinado
+        "accent": "#FFD700",
+        "accent_hover": "#FFC700",
+        "select_bg": "#3A3A3A",
         "select_fg": "#FFFFFF",
-
-        "button_scan": "#666666",
-        "button_play": "#D4AF37",
-        "button_stop": "#FF5E5B",
-
-        "button_nav": "#3C3C3C",
-        "button_metro": "#4A4A4A",
-        "button_metro_on": "#D4AF37",
-
+        
+        # Buttons - Paleta monocromática con acentos
+        "button_scan": "#5A5A5A",
+        "button_play": "#FFD700",
+        "button_stop": "#FF4757",
+        
+        "button_nav": "#2E2E2E",
+        "button_nav_hover": "#3A3A3A",
+        "button_metro": "#404040",
+        "button_metro_hover": "#4D4D4D",
+        "button_metro_on": "#FFD700",
+        
         "button_text": "#FFFFFF",
-        "progress_bar_bg": "#06C000"
+        "progress_bar_bg": "#00D26A",
+        
+        # Effects
+        "shadow": "#00000060",
+        "overlay": "#00000050",
+        "border": "#333333"
     },
 
     "Crimson Dawn": {
-        "bg_main": "#1A0E0E",
-        "bg_secondary": "#120A0A",
-        "bg_card": "#241010",
-
-        "text_primary": "#F5EAEA",
-        "text_secondary": "#CFAFAF",
-
-        "accent": "#E34242",
-        "select_bg": "#B22A2A",
+        # Backgrounds - Rojo oscuro sofisticado
+        "bg_main": "#1C0A0A",
+        "bg_secondary": "#260D0D",
+        "bg_card": "#331414",
+        
+        # Text - Tonos cálidos
+        "text_primary": "#FFE8E8",
+        "text_secondary": "#D4A5A5",
+        
+        # Accent - Rojo vibrante
+        "accent": "#FF4757",
+        "accent_hover": "#FF6B7A",
+        "select_bg": "#CC2936",
         "select_fg": "#FFFFFF",
-
-        "button_scan": "#7A2C2C",
-        "button_play": "#E34242",
-        "button_stop": "#F76B6B",
-
-        "button_nav": "#993333",
-        "button_metro": "#CC4545",
-        "button_metro_on": "#E34242",
-
+        
+        # Buttons - Paleta roja coherente
+        "button_scan": "#8C2F39",
+        "button_play": "#FF4757",
+        "button_stop": "#FF6B7A",
+        
+        "button_nav": "#4D1F26",
+        "button_nav_hover": "#662831",
+        "button_metro": "#B23850",
+        "button_metro_hover": "#CC4055",
+        "button_metro_on": "#FF4757",
+        
         "button_text": "#FFFFFF",
-        "progress_bar_bg": "#06C000"
+        "progress_bar_bg": "#00D26A",
+        
+        # Effects
+        "shadow": "#00000050",
+        "overlay": "#1C0A0A70",
+        "border": "#4D1F26"
     },
     
-    "Red Awakening": {
-        "bg_main": "#120000",
-        "bg_secondary": "#1C0000",
-        "bg_card": "#260000",
-
-        "text_primary": "#FFEAEA",
-        "text_secondary": "#E6BFBF",
-
-        "accent": "#FF3B3B",
-        "select_bg": "#B31818",
+    "Ocean Breeze": {
+        # Backgrounds - Azul claro fresco
+        "bg_main": "#F0F9FF",
+        "bg_secondary": "#E0F2FE",
+        "bg_card": "#FFFFFF",
+        
+        # Text - Azul oscuro para contraste
+        "text_primary": "#0C4A6E",
+        "text_secondary": "#0369A1",
+        
+        # Accent - Turquesa vibrante
+        "accent": "#06B6D4",
+        "accent_hover": "#22D3EE",
+        "select_bg": "#0891B2",
         "select_fg": "#FFFFFF",
-
-        "button_scan": "#661010",
-        "button_play": "#FF3B3B",
-        "button_stop": "#FF1A1A",
-
-        "button_nav": "#8C1C1C",
-        "button_metro": "#B81818",
-        "button_metro_on": "#FF3B3B",
-
-        "button_text": "#FFFFFF",
-        "progress_bar_bg": "#06C000"
+        
+        # Buttons - Paleta azul clara
+        "button_scan": "#67E8F9",
+        "button_play": "#10B981",
+        "button_stop": "#EF4444",
+        
+        "button_nav": "#BAE6FD",
+        "button_nav_hover": "#7DD3FC",
+        "button_metro": "#A5F3FC",
+        "button_metro_hover": "#67E8F9",
+        "button_metro_on": "#06B6D4",
+        
+        "button_text": "#0C4A6E",
+        "progress_bar_bg": "#10B981",
+        
+        # Effects
+        "shadow": "#0369A120",
+        "overlay": "#E0F2FE80",
+        "border": "#BAE6FD"
     },
 
-    "Stage Night": {
-        "bg_main": "#0A0A0A",
-        "bg_secondary": "#151515",
-        "bg_card": "#202020",
-
-        "text_primary": "#F0EAD6",
-        "text_secondary": "#C6BFAE",
-
-        "accent": "#D4AF37",
-        "select_bg": "#D4AF37",
-        "select_fg": "#0A0A0A",
-
-        "button_scan": "#FF6F61",
-        "button_play": "#00E676",
-        "button_stop": "#FF3B5F",
-
-        "button_nav": "#D4AF37",
-        "button_metro": "#3A86FF",
-        "button_metro_on": "#00E676",
-
-        "button_text": "#000000",
-        "progress_bar_bg": "#06C000"
+    "Forest Zen": {
+        # Backgrounds - Verde natural
+        "bg_main": "#0F1E13",
+        "bg_secondary": "#1A2E1F",
+        "bg_card": "#243B2A",
+        
+        # Text - Tonos tierra claros
+        "text_primary": "#E8F5E9",
+        "text_secondary": "#A5D6A7",
+        
+        # Accent - Verde vibrante
+        "accent": "#4CAF50",
+        "accent_hover": "#66BB6A",
+        "select_bg": "#388E3C",
+        "select_fg": "#FFFFFF",
+        
+        # Buttons - Paleta verde natural
+        "button_scan": "#558B2F",
+        "button_play": "#4CAF50",
+        "button_stop": "#FF5252",
+        
+        "button_nav": "#2E4A33",
+        "button_nav_hover": "#3A5A3F",
+        "button_metro": "#689F38",
+        "button_metro_hover": "#7CB342",
+        "button_metro_on": "#4CAF50",
+        
+        "button_text": "#FFFFFF",
+        "progress_bar_bg": "#4CAF50",
+        
+        # Effects
+        "shadow": "#00000050",
+        "overlay": "#1A2E1F70",
+        "border": "#2E4A33"
     },
 
-    "Ocean Light": {
-        "bg_main": "#F5FAFD",
-        "bg_secondary": "#01497C",
-        "bg_card": "#E9F4FA",
-
-        "text_primary": "#012A4A",
-        "text_secondary": "#27638D",
-
-        "accent": "#0284C7",
-        "select_bg": "#2C7DA0",
+    "Purple Haze": {
+        # Backgrounds - Púrpura profundo
+        "bg_main": "#1A0B2E",
+        "bg_secondary": "#231340",
+        "bg_card": "#2D1B4E",
+        
+        # Text - Lavanda claro
+        "text_primary": "#F3E5FF",
+        "text_secondary": "#C4A7E7",
+        
+        # Accent - Púrpura brillante
+        "accent": "#A855F7",
+        "accent_hover": "#C084FC",
+        "select_bg": "#7C3AED",
         "select_fg": "#FFFFFF",
-
-        "button_scan": "#5EA7C8",
-        "button_play": "#80C4E0",
-        "button_stop": "#01497C",
-
-        "button_nav": "#2A6F97",
-        "button_metro": "#80C4E0",
-        "button_metro_on": "#01497C",
-
+        
+        # Buttons - Paleta púrpura
+        "button_scan": "#6D28D9",
+        "button_play": "#A855F7",
+        "button_stop": "#F472B6",
+        
+        "button_nav": "#3B2667",
+        "button_nav_hover": "#4C3575",
+        "button_metro": "#8B5CF6",
+        "button_metro_hover": "#A78BFA",
+        "button_metro_on": "#A855F7",
+        
         "button_text": "#FFFFFF",
-        "progress_bar_bg": "#06C000"
+        "progress_bar_bg": "#10B981",
+        
+        # Effects
+        "shadow": "#00000060",
+        "overlay": "#23134070",
+        "border": "#3B2667"
     },
 }
 
@@ -155,7 +227,7 @@ SCHEMES = {
 class ThemeManager:
     """Gestor de temas con acceso optimizado"""
     
-    def __init__(self, initial_theme: str = "Mono Dark"):
+    def __init__(self, initial_theme: str = "Deep Space"):
         self._current = initial_theme
         self._cache = SCHEMES[self._current].copy()
     

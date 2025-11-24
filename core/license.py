@@ -1,31 +1,26 @@
 # core/license.py
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 
-"""Sistema de licencias y periodo de prueba para LiveCue"""
-
 import sys
 import os
 import json
 import hashlib
+import platform
+import uuid
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from core.logger import log_info, log_warning, log_error, log_debug
 
-
 class LicenseManager:
-    """Gestor de licencias con periodo de prueba"""
-    
-    TRIAL_DAYS = 14  # Días de prueba
+    TRIAL_DAYS = 14
     
     def __init__(self):
         self.license_file = self._get_license_path()
-        self.license_data = self._load_license()
+        self.data = self._load()
     
     def _get_license_path(self) -> Path:
-        """Obtiene la ruta del archivo de licencia (en AppData)"""
         if sys.platform == 'win32':
-            appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
-            base = Path(appdata) / 'LiveCue'
+            base = Path(os.environ.get('APPDATA', os.path.expanduser('~'))) / 'LiveCue'
         elif sys.platform == 'darwin':
             base = Path.home() / 'Library' / 'Application Support' / 'LiveCue'
         else:
@@ -34,146 +29,91 @@ class LicenseManager:
         base.mkdir(parents=True, exist_ok=True)
         return base / '.license'
     
-    def _load_license(self) -> dict:
-        """Carga o crea el archivo de licencia"""
+    def _load(self) -> dict:
         if self.license_file.exists():
             try:
                 with open(self.license_file, 'r') as f:
-                    data = json.load(f)
-                log_debug(f"Licencia cargada: {data.get('status', 'unknown')}")
-                return data
+                    return json.load(f)
             except Exception as e:
-                log_warning(f"Error leyendo licencia: {e}")
+                log_warning(f"Corrupt license file: {e}")
         
-        # Primera ejecución - crear trial
+        # Init trial
         data = {
             'status': 'trial',
             'first_run': datetime.now().isoformat(),
-            'hardware_id': self._get_hardware_id()
+            'hwid': self._get_hwid()
         }
-        self._save_license(data)
-        log_info("🎁 Periodo de prueba iniciado")
+        self._save(data)
+        log_info("Trial period started")
         return data
     
-    def _save_license(self, data: dict):
-        """Guarda el archivo de licencia"""
+    def _save(self, data: dict):
         try:
             with open(self.license_file, 'w') as f:
                 json.dump(data, f)
         except Exception as e:
-            log_error(f"Error guardando licencia: {e}")
+            log_error(f"Failed to save license: {e}")
     
-    def _get_hardware_id(self) -> str:
-        """Genera ID único del hardware (simple)"""
-        import platform
-        import uuid
-        
-        # Combinar varios identificadores
-        machine_id = platform.node()  # Nombre del PC
-        mac = ':'.join(['{:02x}'.format((uuid.getnode() >> i) & 0xff) 
-                       for i in range(0, 48, 8)])
-        
-        # Hash para ofuscar
-        combined = f"{machine_id}-{mac}"
-        return hashlib.sha256(combined.encode()).hexdigest()[:16]
+    def _get_hwid(self) -> str:
+        machine = platform.node()
+        mac = uuid.getnode()
+        raw = f"{machine}-{mac}"
+        return hashlib.sha256(raw.encode()).hexdigest()[:16]
     
     def check_license(self) -> tuple[bool, str, int]:
-        """
-        Verifica el estado de la licencia
-        Returns: (is_valid, message, days_remaining)
-        """
-        status = self.license_data.get('status')
+        status = self.data.get('status')
         
-        # Licencia activada
         if status == 'activated':
-            key = self.license_data.get('license_key', 'N/A')
-            log_debug(f"Licencia activada: {key}")
-            return True, "Licencia activada ✓", -1
+            return True, "Activated", -1
         
-        # Periodo de prueba
         if status == 'trial':
-            first_run = datetime.fromisoformat(self.license_data['first_run'])
-            elapsed = datetime.now() - first_run
-            days_remaining = self.TRIAL_DAYS - elapsed.days
+            start = datetime.fromisoformat(self.data['first_run'])
+            days_left = self.TRIAL_DAYS - (datetime.now() - start).days
             
-            if days_remaining > 0:
-                log_info(f"⏱️  Periodo de prueba: {days_remaining} días restantes")
-                return True, f"Periodo de prueba: {days_remaining} días restantes", days_remaining
-            else:
-                log_warning("⏰ Periodo de prueba expirado")
-                return False, "Periodo de prueba expirado", 0
+            if days_left > 0:
+                return True, f"Trial: {days_left} days left", days_left
+            
+            return False, "Trial expired", 0
         
-        # Sin licencia válida
-        return False, "Licencia inválida", 0
+        return False, "Invalid license", 0
     
-    def activate_license(self, license_key: str) -> bool:
-        """
-        Activa una licencia
-        En producción, esto debería validar contra un servidor
-        """
-        # Validar formato básico
-        if not license_key or len(license_key) < 16:
-            log_error("Clave de licencia inválida")
+    def activate(self, key: str) -> bool:
+        if not key or len(key) < 16:
             return False
         
-        # Validar contra tu sistema (aquí implementa tu lógica)
-        if self._validate_license_key(license_key):
-            self.license_data['status'] = 'activated'
-            self.license_data['license_key'] = license_key
-            self.license_data['activation_date'] = datetime.now().isoformat()
-            self._save_license(self.license_data)
-            
-            log_info(f"✅ Licencia activada correctamente")
+        if self._validate_key(key):
+            self.data.update({
+                'status': 'activated',
+                'key': key,
+                'activated_at': datetime.now().isoformat()
+            })
+            self._save(self.data)
+            log_info("License activated")
             return True
         
-        log_error("❌ Clave de licencia inválida")
+        log_error("Invalid license key")
         return False
     
-    def _validate_license_key(self, key: str) -> bool:
-        """
-        Valida una clave de licencia
-        IMPLEMENTA TU LÓGICA AQUÍ:
-        - Validar contra base de datos
-        - Validar contra servidor API
-        - Validar checksum
-        - Validar hardware_id
-        """
-        # Ejemplo simple: validar formato
-        # En producción: llamar a tu API de validación
-        
-        # Clave de desarrollador (solo para ti)
+    def _validate_key(self, key: str) -> bool:
+        # Dev override
         if key == "LIVECUE-DEV-UNLIMITED-2025":
             return True
-        
-        # Aquí implementarías validación real:
-        # - Llamar a tu servidor
-        # - Verificar en base de datos
-        # - Validar firma digital
-        
-        # Ejemplo de validación simple (cambiar por tu sistema)
-        expected_checksum = hashlib.sha256(
-            (key + self.license_data['hardware_id']).encode()
-        ).hexdigest()[:8]
-        
-        # Por ahora, aceptar claves que empiecen con LIVECUE-
-        return key.startswith("LIVECUE-")
-    
-    def get_purchase_info(self) -> dict:
-        """Información de compra para mostrar al usuario"""
+            
+        # Basic format check for now
+        return key.startswith("LIVECUE-") and len(key) >= 20
+
+    @property
+    def info(self) -> dict:
         return {
             'email': 'mcolladorguez@gmail.com',
             'website': 'https://github.com/MarioCollado/LiveCue',
-            'price': '29.99 EUR',  # Ajusta el precio
-            'hardware_id': self.license_data.get('hardware_id', 'N/A')
+            'hwid': self.data.get('hwid', 'N/A')
         }
 
-
-# Instancia global
-_license_manager = None
+_instance = None
 
 def get_license_manager() -> LicenseManager:
-    """Obtiene la instancia del gestor de licencias (Singleton)"""
-    global _license_manager
-    if _license_manager is None:
-        _license_manager = LicenseManager()
-    return _license_manager
+    global _instance
+    if not _instance:
+        _instance = LicenseManager()
+    return _instance

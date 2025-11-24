@@ -1,220 +1,200 @@
 # ui/welcome_dialog.py
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
-# NO uso comercial sin autorización - mcolladorguez@gmail.com
 
 import flet as ft
 from version_info import APP_VERSION
 
 def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
-    """
-    Muestra un diálogo de bienvenida indicando que es una versión BETA/Prueba
-    
-    Args:
-        page: Referencia a la página de Flet
-        get_color: Función para obtener colores del tema
-        on_accept_callback: Callback opcional a ejecutar cuando se acepta
-    """
     
     async def close_dialog(e=None):
         dlg.open = False
         page.update()
-        
-        # Ejecutar callback si existe
         if on_accept_callback and callable(on_accept_callback):
             if hasattr(page, 'run_task'):
                 page.run_task(on_accept_callback)
             else:
                 on_accept_callback()
     
-    # Contenido del diálogo
-    dlg = ft.AlertDialog(
-        modal=True,
-        title=ft.Row(
-            spacing=10,
-            alignment=ft.MainAxisAlignment.CENTER,
+    # --- Componentes Reutilizables ---
+    
+    def _info_card(icon, title, content_controls, color_key="accent"):
+        return ft.Container(
+            content=ft.Column(
+                spacing=8,
+                controls=[
+                    ft.Row(
+                        spacing=8,
+                        controls=[
+                            ft.Icon(icon, size=16, color=get_color(color_key)),
+                            ft.Text(
+                                title,
+                                size=13,
+                                weight=ft.FontWeight.W_600,
+                                color=get_color("text_primary")
+                            )
+                        ]
+                    ),
+                    ft.Container(
+                        content=ft.Column(spacing=4, controls=content_controls),
+                        padding=ft.padding.only(left=24)
+                    )
+                ]
+            ),
+            padding=12,
+            border_radius=8,
+            bgcolor=get_color("bg_card"),
+            border=ft.border.all(1, get_color("border"))
+        )
+
+    def _bullet_point(text):
+        return ft.Row(
+            spacing=6,
+            vertical_alignment=ft.CrossAxisAlignment.START,
             controls=[
-                ft.Icon(
-                    ft.Icons.SCIENCE_ROUNDED, 
-                    size=32, 
-                    color=get_color("accent")
+                ft.Container(
+                    width=4, height=4, border_radius=2,
+                    bgcolor=get_color("text_secondary"),
+                    margin=ft.margin.only(top=7)
                 ),
                 ft.Text(
-                    "LiveCue - Versión BETA",
+                    text,
+                    size=12,
+                    color=get_color("text_secondary"),
+                    expand=True
+                )
+            ]
+        )
+
+    # --- Contenido ---
+
+    header = ft.Container(
+        content=ft.Column(
+            spacing=4,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Icon(ft.Icons.SCIENCE_ROUNDED, size=48, color=get_color("accent")),
+                ft.Text(
+                    "LiveCue Beta",
                     size=24,
                     weight=ft.FontWeight.BOLD,
                     color=get_color("text_primary")
+                ),
+                ft.Container(
+                    content=ft.Text(
+                        f"v{APP_VERSION}",
+                        size=11,
+                        weight=ft.FontWeight.BOLD,
+                        color=get_color("button_text")
+                    ),
+                    padding=ft.padding.symmetric(horizontal=8, vertical=2),
+                    border_radius=10,
+                    bgcolor=get_color("accent")
                 )
             ]
         ),
+        padding=ft.padding.only(bottom=10)
+    )
+
+    warning_card = ft.Container(
+        content=ft.Row(
+            spacing=12,
+            controls=[
+                ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color=ft.Colors.BLACK, size=24),
+                ft.Column(
+                    spacing=2,
+                    expand=True,
+                    controls=[
+                        ft.Text("Versión en Desarrollo", weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.BLACK),
+                        ft.Text(
+                            "Esta versión puede contener errores. Se recomienda guardar frecuentemente.",
+                            size=11,
+                            color=ft.Colors.BROWN_400
+                        )
+                    ]
+                )
+            ]
+        ),
+        padding=12,
+        border_radius=8,
+        bgcolor=ft.Colors.ORANGE_400 + "15",
+        border=ft.border.all(1, ft.Colors.ORANGE_400 + "30")
+    )
+
+    features_list = [
+        _bullet_point("Interfaz optimizada para directos"),
+        _bullet_point("Gestión avanzada de setlists"),
+        _bullet_point("Integración con Ableton Live (OSC)"),
+        _bullet_point("Reporta bugs en GitHub")
+    ]
+    
+    info_section = _info_card(
+        ft.Icons.INFO_OUTLINE_ROUNDED,
+        "Información Importante",
+        features_list
+    )
+
+    license_section = ft.Container(
+        content=ft.Column(
+            spacing=2,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Text("Licencia CC BY-NC-SA 4.0", size=11, weight=ft.FontWeight.BOLD, color=get_color("text_secondary")),
+                ft.Text("Uso personal gratuito. Prohibido uso comercial sin licencia.", size=10, color=get_color("text_secondary"), italic=True)
+            ]
+        ),
+        padding=ft.padding.only(top=10)
+    )
+
+    # --- Diálogo ---
+    
+    dlg = ft.AlertDialog(
+        modal=True,
+        title=ft.Container(width=0, height=0),
+        title_padding=0,
+        content_padding=24,
         bgcolor=get_color("bg_secondary"),
+        shape=ft.RoundedRectangleBorder(radius=16),
         content=ft.Container(
-            width=500,
+            width=400,
             content=ft.Column(
-                spacing=16,
+                alignment=ft.MainAxisAlignment.START,  # <--- FIX AQUÍ
                 tight=True,
+                spacing=16,
                 controls=[
-                    # Banner de advertencia
-                    ft.Container(
-                        content=ft.Row(
-                            spacing=10,
-                            alignment=ft.MainAxisAlignment.CENTER,
-                            controls=[
-                                ft.Icon(
-                                    ft.Icons.WARNING_AMBER_ROUNDED,
-                                    size=24,
-                                    color=ft.Colors.ORANGE_400
-                                ),
-                                ft.Text(
-                                    "VERSIÓN DE PRUEBA",
-                                    size=16,
-                                    weight=ft.FontWeight.BOLD,
-                                    color=ft.Colors.ORANGE_400
-                                )
-                            ]
-                        ),
-                        padding=ft.padding.all(12),
-                        border_radius=8,
-                        bgcolor=ft.Colors.ORANGE_400 + "20",
-                        border=ft.border.all(2, ft.Colors.ORANGE_400 + "40")
-                    ),
-                    
-                    # Información de la versión
-                    ft.Container(
-                        content=ft.Column(
-                            spacing=8,
-                            controls=[
-                                ft.Text(
-                                    f"Versión: {APP_VERSION}",
-                                    size=14,
-                                    weight=ft.FontWeight.W_600,
-                                    color=get_color("text_primary")
-                                ),
-                                ft.Divider(height=1, color=get_color("accent") + "30"),
-                            ]
-                        )
-                    ),
-                    
-                    # Mensaje principal
-                    ft.Text(
-                        "Estás utilizando una versión BETA de LiveCue. "
-                        "Esta versión está en desarrollo activo y puede contener errores.",
-                        size=13,
-                        color=get_color("text_primary"),
-                        text_align=ft.TextAlign.JUSTIFY
-                    ),
-                    
-                    # Características BETA
-                    ft.Container(
-                        content=ft.Column(
-                            spacing=8,
-                            controls=[
-                                ft.Text(
-                                    "⚠️ Consideraciones:",
-                                    size=13,
-                                    weight=ft.FontWeight.W_600,
-                                    color=get_color("accent")
-                                ),
-                                ft.Text(
-                                    "• Pueden aparecer errores inesperados",
-                                    size=12,
-                                    color=get_color("text_secondary")
-                                ),
-                                ft.Text(
-                                    "• Algunas funciones están en desarrollo",
-                                    size=12,
-                                    color=get_color("text_secondary")
-                                ),
-                                ft.Text(
-                                    "• Guarda tu trabajo frecuentemente",
-                                    size=12,
-                                    color=get_color("text_secondary")
-                                ),
-                                ft.Text(
-                                    "• Reporta bugs en GitHub para mejorar la app",
-                                    size=12,
-                                    color=get_color("text_secondary")
-                                ),
-                            ]
-                        ),
-                        padding=ft.padding.all(12),
-                        border_radius=8,
-                        bgcolor=get_color("bg_card") + "60",
-                    ),
-                    
-                    # Nota de licencia
-                    ft.Container(
-                        content=ft.Column(
-                            spacing=4,
-                            controls=[
-                                ft.Text(
-                                    "📜 Licencia: CC BY-NC-SA 4.0",
-                                    size=11,
-                                    weight=ft.FontWeight.W_500,
-                                    color=get_color("text_secondary"),
-                                    italic=True
-                                ),
-                                ft.Text(
-                                    "NO se permite uso comercial sin autorización",
-                                    size=10,
-                                    color=get_color("text_secondary"),
-                                    italic=True
-                                ),
-                            ]
-                        ),
-                        padding=ft.padding.symmetric(vertical=8),
-                        border=ft.border.only(
-                            top=ft.BorderSide(1, get_color("accent") + "20")
-                        )
-                    ),
-                    
-                    # Contacto
-                    ft.Row(
-                        spacing=10,
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        controls=[
-                            ft.Icon(
-                                ft.Icons.EMAIL_OUTLINED,
-                                size=14,
-                                color=get_color("accent")
-                            ),
-                            ft.Text(
-                                "mcolladorguez@gmail.com",
-                                size=11,
-                                color=get_color("accent"),
-                                weight=ft.FontWeight.W_500
-                            )
-                        ]
-                    )
+                    header,
+                    warning_card,
+                    info_section,
+                    license_section
                 ]
             )
         ),
         actions=[
             ft.Container(
                 content=ft.Row(
-                    spacing=10,
-                    alignment=ft.MainAxisAlignment.END,
+                    alignment=ft.MainAxisAlignment.CENTER,
                     controls=[
-                        ft.TextButton(
-                            "Entendido",
-                            on_click=lambda e: page.run_task(close_dialog, e),
-                            style=ft.ButtonStyle(
-                                color=get_color("text_secondary"),
-                            )
-                        ),
                         ft.FilledButton(
-                            "✓ Aceptar y Continuar",
-                            on_click=lambda e: page.run_task(close_dialog, e),
+                            content=ft.Row(
+                                spacing=8,
+                                controls=[
+                                    ft.Text("Comenzar", weight=ft.FontWeight.W_600),
+                                    ft.Icon(ft.Icons.ARROW_FORWARD_ROUNDED, size=16)
+                                ]
+                            ),
                             style=ft.ButtonStyle(
                                 bgcolor=get_color("accent"),
-                                color=ft.Colors.WHITE
-                            )
+                                color=get_color("button_text"),
+                                padding=ft.padding.symmetric(horizontal=32, vertical=18),
+                                shape=ft.RoundedRectangleBorder(radius=12)
+                            ),
+                            on_click=lambda e: page.run_task(close_dialog, e)
                         )
                     ]
                 ),
-                padding=ft.padding.only(right=8, bottom=8)
+                padding=ft.padding.only(bottom=16)
             )
         ],
-        actions_alignment=ft.MainAxisAlignment.END
+        actions_alignment=ft.MainAxisAlignment.CENTER
     )
     
     page.open(dlg)
