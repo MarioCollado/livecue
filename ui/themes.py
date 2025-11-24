@@ -249,3 +249,6 @@ class ThemeManager:
     def list_themes() -> list:
         """Lista todos los temas disponibles"""
         return list(SCHEMES.keys())
+
+# Instancia global
+theme = ThemeManager()

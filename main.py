@@ -30,6 +30,7 @@ import flet as ft
 from ui.app_ui import main as run_ui
 from osc.server import create_server
 from core.state import state
+from core.license import license_manager
 from core.logger import get_logger, log_info, log_error, log_warning, log_debug
 import threading
 import sys
@@ -223,13 +224,11 @@ def main():
         input("\nPresiona Enter para salir...")
         return 1
     
-    # ===== VERIFICAR LICENCIA =====
-    from core.license import get_license_manager
+    # ===== VERIFICAR LICENCIA =====    
+    license_mgr = license_manager
+    is_valid, status_code, days_remaining = license_mgr.check_license()
     
-    license_mgr = get_license_manager()
-    is_valid, message, days_remaining = license_mgr.check_license()
-    
-    log_info(f"📜 {message}")
+    log_info(f"📜 {license_mgr.get_status_message()}")
     
     if not is_valid:
         log_error("=" * 80)

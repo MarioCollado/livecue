@@ -3,6 +3,7 @@
 
 import flet as ft
 from version_info import APP_VERSION
+from core.i18n import i18n
 
 def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
     
@@ -74,7 +75,7 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
             controls=[
                 ft.Icon(ft.Icons.SCIENCE_ROUNDED, size=48, color=get_color("accent")),
                 ft.Text(
-                    "LiveCue Beta",
+                    i18n.get("welcome_title"),
                     size=24,
                     weight=ft.FontWeight.BOLD,
                     color=get_color("text_primary")
@@ -104,9 +105,9 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                     spacing=2,
                     expand=True,
                     controls=[
-                        ft.Text("Versión en Desarrollo", weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.BLACK),
+                        ft.Text(i18n.get("welcome_warning_title"), weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.BLACK),
                         ft.Text(
-                            "Esta versión puede contener errores. Se recomienda guardar frecuentemente.",
+                            i18n.get("welcome_warning_text"),
                             size=11,
                             color=ft.Colors.BROWN_400
                         )
@@ -121,15 +122,15 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
     )
 
     features_list = [
-        _bullet_point("Interfaz optimizada para directos"),
-        _bullet_point("Gestión avanzada de setlists"),
-        _bullet_point("Integración con Ableton Live (OSC)"),
-        _bullet_point("Reporta bugs en GitHub")
+        _bullet_point(i18n.get("welcome_feature_1")),
+        _bullet_point(i18n.get("welcome_feature_2")),
+        _bullet_point(i18n.get("welcome_feature_3")),
+        _bullet_point(i18n.get("welcome_feature_4"))
     ]
     
     info_section = _info_card(
         ft.Icons.INFO_OUTLINE_ROUNDED,
-        "Información Importante",
+        i18n.get("welcome_info_title"),
         features_list
     )
 
@@ -138,8 +139,8 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
             spacing=2,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Text("Licencia CC BY-NC-SA 4.0", size=11, weight=ft.FontWeight.BOLD, color=get_color("text_secondary")),
-                ft.Text("Uso personal gratuito. Prohibido uso comercial sin licencia.", size=10, color=get_color("text_secondary"), italic=True)
+                ft.Text(i18n.get("welcome_license_title"), size=11, weight=ft.FontWeight.BOLD, color=get_color("text_secondary")),
+                ft.Text(i18n.get("welcome_license_text"), size=10, color=get_color("text_secondary"), italic=True)
             ]
         ),
         padding=ft.padding.only(top=10)
@@ -177,7 +178,7 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                             content=ft.Row(
                                 spacing=8,
                                 controls=[
-                                    ft.Text("Comenzar", weight=ft.FontWeight.W_600),
+                                    ft.Text(i18n.get("welcome_start_btn"), weight=ft.FontWeight.W_600),
                                     ft.Icon(ft.Icons.ARROW_FORWARD_ROUNDED, size=16)
                                 ]
                             ),

@@ -11,6 +11,11 @@ import subprocess
 import re
 import time
 import threading
+import asyncio
+from core.state import state
+from core.playback import playback
+from core.logger import log_info, log_error
+from core.i18n import i18n
 
 
 def get_local_ip():
@@ -211,8 +216,8 @@ def create_header(
                     icon=ft.Icons.PLAY_ARROW_ROUNDED,
                     icon_size=14,
                     icon_color=get_color("button_play"),
-                    tooltip="Iniciar",
-                    on_click=on_timer_start,
+                    tooltip=i18n.get("start"),
+                    on_click=lambda _: asyncio.create_task(playback.start()),
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
                         padding=ft.padding.all(4),
@@ -223,8 +228,8 @@ def create_header(
                     icon=ft.Icons.PAUSE_ROUNDED,
                     icon_size=14,
                     icon_color=get_color("button_stop"),
-                    tooltip="Pausar",
-                    on_click=on_timer_pause,
+                    tooltip=i18n.get("pause"),
+                    on_click=lambda _: asyncio.create_task(playback.pause()),
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
                         padding=ft.padding.all(4),
@@ -235,8 +240,8 @@ def create_header(
                     icon=ft.Icons.RESTART_ALT_ROUNDED,
                     icon_size=14,
                     icon_color=get_color("text_secondary"),
-                    tooltip="Reiniciar",
-                    on_click=on_timer_reset,
+                    tooltip=i18n.get("reset"),
+                    on_click=lambda _: asyncio.create_task(playback.stop()),
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
                         padding=ft.padding.all(4),
@@ -248,7 +253,6 @@ def create_header(
         padding=ft.padding.symmetric(horizontal=12, vertical=6),
         border_radius=12,
         bgcolor="#0E0E0E",
-        # shadow=ft.BoxShadow(blur_radius=8, color=get_color("button_text") + "15"),
     )
 
     # Selector de paleta pequeño y elegante
@@ -256,7 +260,7 @@ def create_header(
         icon=ft.Icons.PALETTE_ROUNDED,
         icon_size=18,
         icon_color=get_color("accent"),
-        tooltip=f"Tema: {palette_dropdown.value}",
+        tooltip=i18n.get("header_theme_tooltip", palette_dropdown.value),
         items=[
             ft.PopupMenuItem(
                 text=name,
@@ -279,7 +283,7 @@ def create_header(
         icon=ft.Icons.INFO_OUTLINE_ROUNDED,
         icon_size=18,
         icon_color=get_color("text_secondary"),
-        tooltip="Acerca de LiveCue",
+        tooltip=i18n.get("header_about_tooltip"),
         on_click=lambda e: show_about_dialog(page, get_color),
         style=ft.ButtonStyle(
             shape=ft.CircleBorder(),
@@ -337,14 +341,14 @@ def create_header(
                             width=28, height=28, border_radius=14,
                             bgcolor=get_color("accent"),
                             on_click=save_btn.on_click, ink=True,
-                            tooltip="Guardar Setlist",
+                            tooltip=i18n.get("header_save_tooltip"),
                         ),
                         ft.Container(
                             content=ft.Icon(ft.Icons.FOLDER_OPEN_ROUNDED, size=16, color=ft.Colors.WHITE),
                             width=28, height=28, border_radius=14,
                             bgcolor=get_color("accent"),
                             on_click=load_btn.on_click, ink=True,
-                            tooltip="Cargar Setlist",
+                            tooltip=i18n.get("header_load_tooltip"),
                         ),
                     ],
                 ),

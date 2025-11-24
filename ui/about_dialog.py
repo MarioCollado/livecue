@@ -3,6 +3,7 @@
 
 import flet as ft
 from version_info import APP_VERSION
+from core.i18n import i18n
 
 def show_about_dialog(page: ft.Page, theme_get_color):
     
@@ -66,8 +67,8 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                     shadow=ft.BoxShadow(blur_radius=10, color=theme_get_color("accent") + "40"),
                     alignment=ft.alignment.center
                 ),
-                ft.Text("LiveCue", size=24, weight=ft.FontWeight.BOLD, color=theme_get_color("text_primary")),
-                ft.Text("Ableton Setlist Controller", size=13, color=theme_get_color("text_secondary")),
+                ft.Text(i18n.get("app_name"), size=24, weight=ft.FontWeight.BOLD, color=theme_get_color("text_primary")),
+                ft.Text(i18n.get("about_subtitle"), size=13, color=theme_get_color("text_secondary")),
                 ft.Container(
                     content=ft.Text(f"v{APP_VERSION}", size=10, weight=ft.FontWeight.BOLD, color=theme_get_color("button_text")),
                     padding=ft.padding.symmetric(horizontal=8, vertical=2),
@@ -81,17 +82,17 @@ def show_about_dialog(page: ft.Page, theme_get_color):
     )
 
     dev_section = _section_card(
-        "DESARROLLO",
+        i18n.get("about_dev_title"),
         [
-            _info_row("Autor", "Mario Collado Rodríguez"),
-            _info_row("Copyright", "© 2025"),
+            _info_row(i18n.get("about_author"), "Mario Collado Rodríguez"),
+            _info_row(i18n.get("about_copyright"), "© 2025"),
             _info_row("GitHub", "github.com/MarioCollado/LiveCue", True, "https://github.com/MarioCollado/LiveCue"),
             _info_row("Email", "mcolladorguez@gmail.com", True, "mailto:mcolladorguez@gmail.com")
         ]
     )
 
     license_section = _section_card(
-        "LICENCIA",
+        i18n.get("about_license_title"),
         [
             ft.Row(
                 spacing=8,
@@ -105,14 +106,14 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                 spacing=8,
                 controls=[
                     ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=14, color=ft.Colors.GREEN_400),
-                    ft.Text("Uso personal y educativo", size=11, color=theme_get_color("text_secondary"))
+                    ft.Text(i18n.get("about_license_personal"), size=11, color=theme_get_color("text_secondary"))
                 ]
             ),
             ft.Row(
                 spacing=8,
                 controls=[
                     ft.Icon(ft.Icons.CANCEL_ROUNDED, size=14, color=ft.Colors.RED_400),
-                    ft.Text("Uso comercial sin permiso", size=11, color=theme_get_color("text_secondary"))
+                    ft.Text(i18n.get("about_license_commercial"), size=11, color=theme_get_color("text_secondary"))
                 ]
             )
         ]
@@ -120,7 +121,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
 
     disclaimer = ft.Container(
         content=ft.Text(
-            "Este software se proporciona 'tal cual', sin garantías explícitas o implícitas.",
+            i18n.get("about_disclaimer"),
             size=10,
             color=theme_get_color("text_secondary"),
             text_align=ft.TextAlign.CENTER,
@@ -159,12 +160,12 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                     spacing=12,
                     controls=[
                         ft.TextButton(
-                             "Ver Licencia",
+                             i18n.get("about_view_license"),
                             style=ft.ButtonStyle(color=theme_get_color("text_secondary")),
                             on_click=lambda e: page.launch_url("https://creativecommons.org/licenses/by-nc-sa/4.0/")
                         ),
                         ft.FilledButton(
-                            "Cerrar",
+                            i18n.get("close"),
                             style=ft.ButtonStyle(
                                 bgcolor=theme_get_color("accent"),
                                 color=theme_get_color("button_text"),

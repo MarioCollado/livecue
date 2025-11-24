@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 from core.logger import log_info, log_warning, log_error, log_debug
+from core.i18n import i18n
 
 class LicenseManager:
     TRIAL_DAYS = 14
@@ -60,22 +61,32 @@ class LicenseManager:
         raw = f"{machine}-{mac}"
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
     
-    def check_license(self) -> tuple[bool, str, int]:
+    def check_license(self):
         status = self.data.get('status')
-        
+
+        # Activated
         if status == 'activated':
-            return True, "Activated", -1
-        
+            return True, "valid", 9999  # o 0, como prefieras
+
+        # Trial
         if status == 'trial':
             start = datetime.fromisoformat(self.data['first_run'])
             days_left = self.TRIAL_DAYS - (datetime.now() - start).days
-            
+
             if days_left > 0:
-                return True, f"Trial: {days_left} days left", days_left
-            
-            return False, "Trial expired", 0
-        
-        return False, "Invalid license", 0
+                return False, "trial", days_left
+
+            return False, "expired", 0
+
+        # Invalid
+        return False, "invalid", 0
+
+    def get_days_remaining(self) -> int:
+        if self.data.get('status') == 'trial':
+            start = datetime.fromisoformat(self.data['first_run'])
+            days_left = self.TRIAL_DAYS - (datetime.now() - start).days
+            return max(0, days_left)
+        return 0
     
     def activate(self, key: str) -> bool:
         if not key or len(key) < 16:
@@ -110,10 +121,29 @@ class LicenseManager:
             'hwid': self.data.get('hwid', 'N/A')
         }
 
-_instance = None
+    def get_purchase_info(self):
+        """Devuelve información para la compra de la licencia."""
+        return {
+            'email': 'mcolladorguez@gmail.com',
+            'website': 'https://github.com/MarioCollado/LiveCue',
+            'price': 'Consultar / Consult',
+            'hardware_id': self.data.get('hwid', 'N/A')
+        }
 
-def get_license_manager() -> LicenseManager:
-    global _instance
-    if not _instance:
-        _instance = LicenseManager()
-    return _instance
+    def get_status_message(self):
+        """Devuelve un mensaje de estado legible."""
+        is_valid, status, days_left = self.check_license()
+        
+        if status == "valid":
+            return i18n.get("license_valid")
+            
+        if status == "trial":
+            return i18n.get("license_trial", days_left)
+            
+        if status == "expired":
+            return i18n.get("license_expired")
+            
+        return i18n.get("license_invalid")
+
+# Instancia global
+license_manager = LicenseManager()
