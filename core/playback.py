@@ -2,13 +2,13 @@
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
-"""Lógica de reproducción thread-safe"""
 import time
 import threading
 from osc.client import send_message
 from core.state import state
 from core.logger import log_info, log_error, log_warning, log_debug
 
+"""Lógica de reproducción thread-safe"""
 class PlaybackController:
     """Controlador de reproducción de Ableton con sincronización"""
     

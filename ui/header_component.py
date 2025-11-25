@@ -217,7 +217,7 @@ def create_header(
                     icon_size=14,
                     icon_color=get_color("button_play"),
                     tooltip=i18n.get("start"),
-                    on_click=lambda _: asyncio.create_task(playback.start()),
+                    on_click=on_timer_start,
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
                         padding=ft.padding.all(4),
@@ -229,7 +229,7 @@ def create_header(
                     icon_size=14,
                     icon_color=get_color("button_stop"),
                     tooltip=i18n.get("pause"),
-                    on_click=lambda _: asyncio.create_task(playback.pause()),
+                    on_click=on_timer_pause,
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
                         padding=ft.padding.all(4),
@@ -241,7 +241,7 @@ def create_header(
                     icon_size=14,
                     icon_color=get_color("text_secondary"),
                     tooltip=i18n.get("reset"),
-                    on_click=lambda _: asyncio.create_task(playback.stop()),
+                    on_click=on_timer_reset,
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
                         padding=ft.padding.all(4),
