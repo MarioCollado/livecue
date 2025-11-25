@@ -73,23 +73,28 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
             spacing=4,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Icon(ft.Icons.SCIENCE_ROUNDED, size=48, color=get_color("accent")),
+                ft.Icon(
+                    ft.Icons.SCIENCE_ROUNDED,
+                    size=48,
+                    color=get_color("accent")
+                ),
                 ft.Text(
                     i18n.get("welcome_title"),
                     size=24,
                     weight=ft.FontWeight.BOLD,
-                    color=get_color("text_primary")
+                    color=get_color("text_primary"),
+                    text_align=ft.TextAlign.CENTER
                 ),
                 ft.Container(
                     content=ft.Text(
                         f"v{APP_VERSION}",
                         size=11,
                         weight=ft.FontWeight.BOLD,
-                        color=get_color("button_text")
+                        color=get_color("button_text"),
+                        text_align=ft.TextAlign.CENTER
                     ),
                     padding=ft.padding.symmetric(horizontal=8, vertical=2),
-                    border_radius=10,
-                    bgcolor=get_color("accent")
+                    alignment=ft.alignment.center
                 )
             ]
         ),
@@ -135,12 +140,25 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
     )
 
     license_section = ft.Container(
+        alignment=ft.alignment.center,
         content=ft.Column(
             spacing=2,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Text(i18n.get("welcome_license_title"), size=11, weight=ft.FontWeight.BOLD, color=get_color("text_secondary")),
-                ft.Text(i18n.get("welcome_license_text"), size=10, color=get_color("text_secondary"), italic=True)
+                ft.Text(
+                    i18n.get("welcome_license_title"),
+                    size=11,
+                    weight=ft.FontWeight.BOLD,
+                    color=get_color("text_secondary"),
+                    text_align=ft.TextAlign.CENTER
+                ),
+                ft.Text(
+                    i18n.get("welcome_license_text"),
+                    size=10,
+                    color=get_color("text_secondary"),
+                    italic=True,
+                    text_align=ft.TextAlign.CENTER
+                )
             ]
         ),
         padding=ft.padding.only(top=10)

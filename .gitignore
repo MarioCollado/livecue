@@ -18,6 +18,7 @@ __pycache__/
 release/
 build_exe.py
 icono.png
+activate_dev.py
 
 # Distribución / Empaquetado
 build/

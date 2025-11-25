@@ -67,14 +67,30 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                     shadow=ft.BoxShadow(blur_radius=10, color=theme_get_color("accent") + "40"),
                     alignment=ft.alignment.center
                 ),
-                ft.Text(i18n.get("app_name"), size=24, weight=ft.FontWeight.BOLD, color=theme_get_color("text_primary")),
-                ft.Text(i18n.get("about_subtitle"), size=13, color=theme_get_color("text_secondary")),
+                ft.Text(
+                    i18n.get("app_name"),
+                    size=24,
+                    weight=ft.FontWeight.BOLD,
+                    color=theme_get_color("text_primary"),
+                    text_align=ft.TextAlign.CENTER
+                ),
+                ft.Text(
+                    i18n.get("about_subtitle"),
+                    size=13,
+                    color=theme_get_color("text_secondary"),
+                    text_align=ft.TextAlign.CENTER
+                ),
                 ft.Container(
-                    content=ft.Text(f"v{APP_VERSION}", size=10, weight=ft.FontWeight.BOLD, color=theme_get_color("button_text")),
+                    content=ft.Text(
+                        f"v{APP_VERSION}",
+                        size=10,
+                        weight=ft.FontWeight.BOLD,
+                        color=theme_get_color("button_text"),
+                        text_align=ft.TextAlign.CENTER
+                    ),
                     padding=ft.padding.symmetric(horizontal=8, vertical=2),
-                    border_radius=10,
-                    bgcolor=theme_get_color("accent") + "CC",
-                    margin=ft.margin.only(top=4)
+                    margin=ft.margin.only(top=4),
+                    alignment=ft.alignment.center
                 )
             ]
         ),
