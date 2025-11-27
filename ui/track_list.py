@@ -403,27 +403,29 @@ class TrackListView:
     # ASYNC CALLBACKS
     # ============================================
     async def _on_track_click(self, track_index):
-        """Click en track - ASYNC con auto-expand y toggle"""
+        """Click en track - ASYNC con auto-expand"""
         if 0 <= track_index < len(state.tracks):
             tracks_list = state.tracks
             previous_index = state.current_index
             
-            #  Si haces click en el mismo track que ya está seleccionado
-            if previous_index == track_index:
-                # Toggle: colapsar/expandir el actual
-                tracks_list[track_index].expanded = not tracks_list[track_index].expanded
-                state.tracks = tracks_list
+            # 🆕 PROTECCIÓN: No ejecutar auto-expand si aún no hay selección válida
+            # (evita problemas durante inicialización)
+            if previous_index >= 0:  # Solo si ya había algo seleccionado
+                # Si haces click en el mismo track que ya está seleccionado
+                if previous_index == track_index:
+                    # Toggle: colapsar/expandir el actual
+                    tracks_list[track_index].expanded = not tracks_list[track_index].expanded
+                    state.tracks = tracks_list
+                    
+                    StatusBar.instance.text.value = f"● {state.tracks[track_index].title}"
+                    StatusBar.instance.text.color = self.theme.get("accent")
+                    await self.update()
+                    return
                 
-                StatusBar.instance.text.value = f"● {state.tracks[track_index].title}"
-                StatusBar.instance.text.color = self.theme.get("accent")
-                await self.update()
-                return
-            
-            # Colapsar el track anterior si es diferente
-            if 0 <= previous_index < len(tracks_list):
+                # Colapsar el track anterior si es diferente
                 tracks_list[previous_index].expanded = False
             
-            #  Expandir el track actual (si tiene secciones)
+            # Expandir el track actual (si tiene secciones)
             if len(tracks_list[track_index].sections) > 0:
                 tracks_list[track_index].expanded = True
             

@@ -98,6 +98,7 @@ def main(page: ft.Page):
     # Tema y componentes
     theme = ThemeManager("Deep Space")
     page.theme = ft.Theme(color_scheme_seed=theme.get("accent"))
+    page.bgcolor = theme.get("bg_main")
 
     status_bar = StatusBar(theme.get)
     StatusBar.instance = status_bar
