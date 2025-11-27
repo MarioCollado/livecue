@@ -9,6 +9,7 @@ import asyncio
 from core.state import state
 from ui.themes import ThemeManager
 from core.playback import playback
+from core.utils import icon
 from ui.track_list import TrackListView
 from setlist.manager import manager
 from ui.components import MetronomeButton, TempoDisplay, BeatIndicator, StatusBar
@@ -28,13 +29,22 @@ class ControlPanel:
         self.tempo_display = TempoDisplay(theme.get, state.current_tempo, state.time_signature_num)
         self.beat_indicator = BeatIndicator(theme.get)
         
-        self.play_btn = self._create_button("PLAY", ft.Icons.PLAY_ARROW_ROUNDED, self._on_play, "button_play")
-        self.stop_btn = self._create_button("STOP", ft.Icons.STOP_ROUNDED, self._on_stop, "button_stop")
+        # PLAY y STOP solo con icono grande
+        self.play_btn = self._create_icon_only_button(
+            icon("play_txt", size=48, color=ft.Colors.WHITE),
+            self._on_play,
+            "button_play"
+        )
+        self.stop_btn = self._create_icon_only_button(
+            icon("hand-stop", size=48, color=ft.Colors.WHITE),
+            self._on_stop,
+            "button_stop"
+        )
+        
         self.prev_btn = self._create_nav_btn(ft.Icons.SKIP_PREVIOUS_ROUNDED, self._on_prev)
         self.next_btn = self._create_nav_btn(ft.Icons.SKIP_NEXT_ROUNDED, self._on_next)
-        self.scan_btn = self._create_button("SCAN", ft.Icons.SEARCH_ROUNDED, self._on_scan, "button_scan")
 
-        # ===== NUEVO: SCAN con spinner =====
+        # ===== SCAN con spinner =====
         self.scan_btn = self._create_scan_button()
         self.scan_progress_bar = ft.ProgressBar(
             width=220,
@@ -98,14 +108,33 @@ class ControlPanel:
             ]
         )
 
+    def _create_icon_only_button(self, icon_widget, on_click, color_key):
+        """Crea un botón con solo el icono (sin texto)"""
+        return ft.Container(
+            content=icon_widget,
+            width=220,
+            height=90,
+            border_radius=10,
+            bgcolor=self.theme.get(color_key),
+            on_click=lambda e: self.page.run_task(on_click, e),
+            ink=True,
+            alignment=ft.alignment.center,
+        )
 
     def _create_button(self, text, icon, on_click, color_key):
+        # Si icon es un string, crear ft.Icon; si es un widget, usarlo directamente
+        if isinstance(icon, str):
+            icon_widget = ft.Icon(icon, size=24, color=ft.Colors.WHITE)
+        else:
+            # Es un widget (como el resultado de icon()), usarlo tal cual
+            icon_widget = icon
+        
         return ft.Container(
             content=ft.Row(
                 alignment=ft.MainAxisAlignment.CENTER,
                 spacing=10,
                 controls=[
-                    ft.Icon(icon, size=24, color=ft.Colors.WHITE),
+                    icon_widget,
                     ft.Text(text, size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
                 ]
             ),
@@ -238,20 +267,10 @@ class ControlPanel:
         )
         
         # Icono (visible por defecto)
-        self.scan_icon = ft.Icon(
-            ft.Icons.SEARCH_ROUNDED, 
-            size=24, 
-            color=ft.Colors.WHITE,
-            visible=True
-        )
+        self.scan_icon = icon("search2",size=24,color=ft.Colors.WHITE)
         
         # Texto
-        self.scan_text = ft.Text(
-            "SCAN", 
-            size=16, 
-            weight=ft.FontWeight.BOLD, 
-            color=ft.Colors.WHITE
-        )
+        self.scan_text = ft.Text("SCAN", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
         
         return ft.Container(
             content=ft.Row(

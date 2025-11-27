@@ -6,6 +6,7 @@ from core.state import state, Locator, Track, Section
 from osc.client import send_message
 from core.logger import log_info, log_error, log_warning, log_debug
 import threading
+import time
 from typing import Dict, List, Optional
 
 class OSCHandlers:
@@ -16,6 +17,8 @@ class OSCHandlers:
         self._lock = threading.RLock()  # Lock para sincronización
         self._processing_cue_points = False
         self._processing_clips = False
+        self._clip_timestamps: Dict[str, float] = {}  # Timestamps para clips
+        self._clip_timeout = 1.0  # Timeout de 1 segundo
         log_debug("OSCHandlers inicializado", module="OSC")
     
     def handle_cue_points(self, address, *args):
@@ -224,8 +227,12 @@ class OSCHandlers:
         track_index = args[0]
         clip_names = [n for n in args[1:] if n and str(n).lower() != "none"]
         
+        # DEBUG: Ver datos crudos
+        log_debug(f"📋 RAW nombres ({len(args[1:])}): {args[1:][:5]}...", module="OSC")
+        
         with self._lock:
             self._clip_data.setdefault(track_index, {})["names"] = clip_names
+            self._clip_timestamps[f"names_{track_index}"] = time.time()
             log_info(f"📋 Clips recibidos: {len(clip_names)} nombres para track {track_index}", module="OSC")
         
         self._try_assign_clips(track_index)
@@ -239,8 +246,12 @@ class OSCHandlers:
         track_index = args[0]
         clip_times = [float(t) for t in args[1:]]
         
+        # DEBUG: Ver datos crudos
+        log_debug(f"⏱️  RAW tiempos ({len(clip_times)}): {clip_times[:5]}...", module="OSC")
+        
         with self._lock:
             self._clip_data.setdefault(track_index, {})["times"] = clip_times
+            self._clip_timestamps[f"times_{track_index}"] = time.time()
             log_info(f"⏱️  Clips recibidos: {len(clip_times)} tiempos para track {track_index}", module="OSC")
         
         self._try_assign_clips(track_index)
@@ -260,9 +271,32 @@ class OSCHandlers:
                 log_debug(f"Datos incompletos para track {track_index} (esperando más datos)", module="OSC")
                 return
             
-            if len(names) != len(times):
-                log_warning(f"Desajuste de clips: {len(names)} nombres vs {len(times)} tiempos", module="OSC")
+            # Verificar que ambos datos sean recientes
+            names_time = self._clip_timestamps.get(f"names_{track_index}", 0)
+            times_time = self._clip_timestamps.get(f"times_{track_index}", 0)
+            current_time = time.time()
+            
+            # Si alguno es muy viejo, descartarlo
+            if (current_time - names_time) > self._clip_timeout or \
+               (current_time - times_time) > self._clip_timeout:
+                log_warning(
+                    f"⏰ Datos de clips obsoletos para track {track_index}, descartando",
+                    module="OSC"
+                )
+                self._clip_data[track_index] = {}
                 return
+            
+            # EMPAREJAMIENTO INTELIGENTE: No hacer return si hay desajuste
+            if len(names) != len(times):
+                min_length = min(len(names), len(times))
+                log_warning(
+                    f"⚠️  Desajuste de clips: {len(names)} nombres vs {len(times)} tiempos "
+                    f"- emparejando los primeros {min_length}",
+                    module="OSC"
+                )
+                # Recortar al tamaño mínimo
+                names = names[:min_length]
+                times = times[:min_length]
             
             self._processing_clips = True
         
@@ -273,9 +307,12 @@ class OSCHandlers:
         finally:
             with self._lock:
                 self._processing_clips = False
-                # Limpiar datos solo después de procesar exitosamente
+                # Limpiar datos después de procesar
                 if track_index in self._clip_data:
                     self._clip_data[track_index] = {}
+                # Limpiar timestamps
+                self._clip_timestamps.pop(f"names_{track_index}", None)
+                self._clip_timestamps.pop(f"times_{track_index}", None)
     
     def _assign_clips_to_tracks(self, names: List[str], times: List[float], source_track_index: int):
         """Asigna clips a tracks - NO limpia secciones existentes"""
@@ -289,13 +326,13 @@ class OSCHandlers:
             assigned_count = 0
             skipped_count = 0
             
-            for name, time in zip(names, times):
-                track = state.find_track_by_beat(float(time))
+            for name, time_val in zip(names, times):
+                track = state.find_track_by_beat(float(time_val))
                 if track:
                     # Verificar si la sección ya existe
-                    exists = any(s.beat == float(time) for s in track.sections)
+                    exists = any(s.beat == float(time_val) for s in track.sections)
                     if not exists:
-                        section = Section(name=name, beat=float(time), time=float(time))
+                        section = Section(name=name, beat=float(time_val), time=float(time_val))
                         track.add_section(section)
                         assigned_count += 1
                         log_debug(f"✓ '{name}' → {track.title}", module="OSC")
@@ -303,7 +340,7 @@ class OSCHandlers:
                         log_debug(f"⊘ '{name}' ya existe en {track.title}", module="OSC")
                 else:
                     skipped_count += 1
-                    log_warning(f"✗ '{name}' @ beat {time} fuera de rango de tracks", module="OSC")
+                    log_warning(f"✗ '{name}' @ beat {time_val} fuera de rango de tracks", module="OSC")
             
             log_info(f"✓ Clips asignados: {assigned_count}, Omitidos: {skipped_count}", module="OSC")
         

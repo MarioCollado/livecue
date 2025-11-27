@@ -44,7 +44,12 @@ class Track:
     
     def contains_beat(self, beat: float) -> bool:
         """Verifica si un beat está dentro del rango del track"""
-        return self.start <= beat < self.end
+        result = self.start <= beat <= self.end
+        log_debug(
+            f"contains_beat({beat}) en '{self.title}' [{self.start}-{self.end}]: {result}",
+            module="Track"
+        )
+        return result
     
     def add_section(self, section: Section):
         """Agrega una sección y mantiene el orden"""

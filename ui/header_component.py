@@ -16,6 +16,7 @@ from core.state import state
 from core.playback import playback
 from core.logger import log_info, log_error
 from core.i18n import i18n
+from core.utils import icon
 
 
 def get_local_ip():
@@ -172,7 +173,6 @@ def create_header(
     local_ip = get_local_ip()
     tailscale_ip = get_tailscale_ip()
     primary_ip = tailscale_ip if tailscale_ip else local_ip
-    primary_icon = ft.Icons.VPN_LOCK if tailscale_ip else ft.Icons.WIFI
     primary_color = get_color("button_play") if tailscale_ip else get_color("accent")
 
     tooltip_lines = [f"Local WiFi: {local_ip}:{web_port}"]
@@ -255,11 +255,9 @@ def create_header(
         bgcolor="#0E0E0E",
     )
 
-    # Selector de paleta pequeño y elegante
-    palette_selector= ft.PopupMenuButton(
-        icon=ft.Icons.PALETTE_ROUNDED,
-        icon_size=18,
-        icon_color=get_color("accent"),
+    # Selector de paleta pequeño y elegante - usando SVG
+    palette_selector = ft.PopupMenuButton(
+        content=icon("color_palette2", size=20, color=get_color("accent")),
         tooltip=i18n.get("header_theme_tooltip", palette_dropdown.value),
         items=[
             ft.PopupMenuItem(
@@ -295,13 +293,13 @@ def create_header(
         ),
     )
 
-    # Grupo izquierdo: logo + paleta
+    # Grupo izquierdo: logo + paleta - usando SVG para el logo
     left_group = ft.Row(
         spacing=10,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Container(
-                content=ft.Icon(ft.Icons.AUDIOTRACK_ROUNDED, size=22, color=ft.Colors.WHITE),
+                content=icon("logo", size=24, color=ft.Colors.WHITE),
                 width=38, height=38, border_radius=19,
                 bgcolor=get_color("accent"),
                 shadow=ft.BoxShadow(blur_radius=6, color=get_color("accent") + "40"),
@@ -310,28 +308,11 @@ def create_header(
         ]
     )
 
-    # Controles de la derecha (guardar, red, versión)
+    # Controles de la derecha (guardar, red, versión) - usando SVG para folder
     right_controls = ft.Row(
         spacing=10,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
-            ft.Container(
-                content=ft.Row(
-                    spacing=4,
-                    controls=[
-                        ft.Icon(ft.Icons.FOLDER_SPECIAL_ROUNDED, size=14, color=get_color("accent")),
-                        ft.Text(
-                            save_counter.value,
-                            size=11,
-                            weight=ft.FontWeight.W_600,
-                            color=get_color("text_primary"),
-                        ),
-                    ],
-                ),
-                padding=ft.padding.symmetric(horizontal=8, vertical=3),
-                border_radius=8,
-                bgcolor=get_color("bg_card") + "40",
-            ),
             ft.Container(
                 content=ft.Row(
                     spacing=3,
@@ -360,7 +341,7 @@ def create_header(
                 content=ft.Row(
                     spacing=5,
                     controls=[
-                        ft.Icon(primary_icon, size=15, color=primary_color),
+                        icon("network", size=15, color=primary_color),
                         ft.Text(
                             f"{primary_ip}",
                             size=11,

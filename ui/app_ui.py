@@ -197,7 +197,7 @@ def main(page: ft.Page):
         expand=True,
         border_radius=12,
         padding=ft.padding.all(18),
-        bgcolor=theme.get("bg_card") + "00",
+        bgcolor=theme.get("bg_card"),
     )
 
     main_row = ft.Row(

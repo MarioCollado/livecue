@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
-"""Paletas de colores unificadas - Diseño Bento Moderno"""
+"""Paletas de colores unificadas"""
 
 SCHEMES = {
     
@@ -101,7 +101,7 @@ SCHEMES = {
         
         "button_nav": "#4D1F26",
         "button_nav_hover": "#662831",
-        "button_metro": "#B23850",
+        "button_metro": "#5A5A5A",
         "button_metro_hover": "#CC4055",
         "button_metro_on": "#FF4757",
         
@@ -113,41 +113,46 @@ SCHEMES = {
         "overlay": "#1C0A0A70",
         "border": "#4D1F26"
     },
-    
+        
     "Ocean Breeze": {
-        # Backgrounds - Azul claro fresco
-        "bg_main": "#F0F9FF",
-        "bg_secondary": "#E0F2FE",
-        "bg_card": "#FFFFFF",
-        
-        # Text - Azul oscuro para contraste
-        "text_primary": "#0C4A6E",
-        "text_secondary": "#0369A1",
-        
-        # Accent - Turquesa vibrante
-        "accent": "#06B6D4",
-        "accent_hover": "#22D3EE",
-        "select_bg": "#0891B2",
+        # Backgrounds - Pastel suave, minimalista
+        "bg_main": "#F7F8FA",        # Gris-blanco mate suave
+        "bg_secondary": "#EEF0F3",   # Gris pastel más frío
+        "bg_card": "#FFFFFF",        # Limpio y plano
+
+        # Text - Azul grisáceo calmado, muy legible
+        "text_primary": "#243447",   # Azul-gris profundo pero suave
+        "text_secondary": "#60758A", # Suave y pastel
+
+        # Accent - Turquesa pastel (muy calmado)
+        "accent": "#6AC8D8",
+        "accent_hover": "#83D6E4",
+        "select_bg": "#55B4C5",
         "select_fg": "#FFFFFF",
-        
-        # Buttons - Paleta azul clara
-        "button_scan": "#67E8F9",
-        "button_play": "#10B981",
-        "button_stop": "#EF4444",
-        
-        "button_nav": "#BAE6FD",
-        "button_nav_hover": "#7DD3FC",
-        "button_metro": "#A5F3FC",
-        "button_metro_hover": "#67E8F9",
-        "button_metro_on": "#06B6D4",
-        
-        "button_text": "#0C4A6E",
-        "progress_bar_bg": "#10B981",
-        
-        # Effects
-        "shadow": "#0369A120",
-        "overlay": "#E0F2FE80",
-        "border": "#BAE6FD"
+
+        # Buttons - Tonos claros, cómodos a la vista
+        "button_scan": "#DDF3F7",    # Pastel casi blanco
+        "button_play": "#A6D8B8",    # Verde pastel suave
+        "button_stop": "#F2A5A5",    # Rojo pastel sin agresividad
+
+        "button_nav": "#E1E6EB",     # Gris pastel
+        "button_nav_hover": "#D3DAE0",
+
+        # Metro: gris claro, minimalista, claramente OFF
+        "button_metro": "#D6DADF",
+        "button_metro_hover": "#C3C8CE",
+        "button_metro_on": "#6AC8D8",
+
+        # Botón de texto oscuro para lectura cómoda
+        "button_text": "#243447",
+
+        # Barra de progreso en verde pastel calmado
+        "progress_bar_bg": "#A6D8B8",
+
+        # Efectos suaves y nada intrusivos
+        "shadow": "#24344710",
+        "overlay": "#EEF0F380",
+        "border": "#E1E6EB"
     },
 
     "Forest Zen": {
@@ -173,7 +178,7 @@ SCHEMES = {
         
         "button_nav": "#2E4A33",
         "button_nav_hover": "#3A5A3F",
-        "button_metro": "#689F38",
+        "button_metro": "#555A55",
         "button_metro_hover": "#7CB342",
         "button_metro_on": "#4CAF50",
         
@@ -209,7 +214,7 @@ SCHEMES = {
         
         "button_nav": "#3B2667",
         "button_nav_hover": "#4C3575",
-        "button_metro": "#8B5CF6",
+        "button_metro": "#56505A",
         "button_metro_hover": "#A78BFA",
         "button_metro_on": "#A855F7",
         

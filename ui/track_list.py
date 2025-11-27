@@ -43,7 +43,7 @@ class TrackListView:
                 print("[UI] Page sin controles inicializados")
                 return
 
-            # NUEVO: Obtener tracks ANTES de limpiar
+            # Obtener tracks ANTES de limpiar
             tracks = state.tracks
             
             if not tracks:
@@ -57,7 +57,7 @@ class TrackListView:
                         pass
                 return
 
-            # NUEVO: Crear TODOS los items primero (sin modificar column)
+            # Crear TODOS los items primero (sin modificar column)
             new_items = []
             for idx, track in enumerate(tracks):
                 try:
@@ -313,7 +313,6 @@ class TrackListView:
     # ============================================
     # DRAG & DROP CALLBACKS
     # ============================================
-# REEMPLAZAR estos 3 métodos en TrackListView
 
     def _on_will_accept_drag(self, e):
         """Valida si se puede aceptar el drop"""
@@ -376,7 +375,7 @@ class TrackListView:
             elif target_index <= state.current_index < start_idx:
                 state.current_index += 1
             
-            # ✅ CRÍTICO: Restaurar opacidad de TODOS los controles antes de actualizar
+            # CRÍTICO: Restaurar opacidad de TODOS los controles antes de actualizar
             for control in self.column.controls:
                 try:
                     if hasattr(control, 'content') and hasattr(control.content, 'content'):
@@ -387,7 +386,7 @@ class TrackListView:
             StatusBar.instance.text.value = f"● ✓ Reordenado: {moved_track.title}"
             StatusBar.instance.text.color = self.theme.get("button_play")
             
-            # ✅ Forzar recreación completa de la lista
+            # Forzar recreación completa de la lista
             print("[DRAG] Recreando lista completa...")
             await self.update()
             
@@ -404,21 +403,49 @@ class TrackListView:
     # ASYNC CALLBACKS
     # ============================================
     async def _on_track_click(self, track_index):
-        """Click en track - ASYNC"""
+        """Click en track - ASYNC con auto-expand y toggle"""
         if 0 <= track_index < len(state.tracks):
+            tracks_list = state.tracks
+            previous_index = state.current_index
+            
+            #  Si haces click en el mismo track que ya está seleccionado
+            if previous_index == track_index:
+                # Toggle: colapsar/expandir el actual
+                tracks_list[track_index].expanded = not tracks_list[track_index].expanded
+                state.tracks = tracks_list
+                
+                StatusBar.instance.text.value = f"● {state.tracks[track_index].title}"
+                StatusBar.instance.text.color = self.theme.get("accent")
+                await self.update()
+                return
+            
+            # Colapsar el track anterior si es diferente
+            if 0 <= previous_index < len(tracks_list):
+                tracks_list[previous_index].expanded = False
+            
+            #  Expandir el track actual (si tiene secciones)
+            if len(tracks_list[track_index].sections) > 0:
+                tracks_list[track_index].expanded = True
+            
+            # Actualizar índice actual
             state.current_index = track_index
+            state.tracks = tracks_list  # Forzar setter
+
             StatusBar.instance.text.value = f"● Seleccionado: {state.tracks[track_index].title}"
             StatusBar.instance.text.color = self.theme.get("accent")
             await self.update()
 
     async def _toggle_expand(self, track_index):
-        """Toggle expand de secciones - ASYNC"""
+        """Toggle expand de secciones - ASYNC (manual con flecha)"""
         if 0 <= track_index < len(state.tracks):
             tracks_list = state.tracks
+            
+            # Toggle manual: simplemente invierte el estado actual
             tracks_list[track_index].expanded = not tracks_list[track_index].expanded
+            
             state.tracks = tracks_list  # Forzar setter
             await self.update()
-
+            
     async def _on_section_click(self, track_index, section_index):
         """Click en sección - ASYNC"""
         try:

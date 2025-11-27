@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
+import flet as ft
 import time
 import json
 import traceback
@@ -31,3 +32,13 @@ def log_exc(prefix="ERROR"):
             log_error(f"[{prefix}] {exc_value}", "UTILS", exc_value)
         else:
             log_error(f"[{prefix}] Unknown exception", "UTILS")
+
+def icon(name, size=16, color=None):
+    """Crea un control SVG desde un archivo en assets/icons/"""
+    return ft.Image(
+        src=f"assets/icons/{name}.svg",
+        width=size,
+        height=size,
+        color=color,
+        fit=ft.ImageFit.CONTAIN,
+    )

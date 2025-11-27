@@ -6,6 +6,7 @@ import flet as ft
 import time
 import threading
 from core.logger import log_error
+from core.utils import icon
 
 class BeatIndicator:
     def __init__(self, get_color_fn):
@@ -73,8 +74,9 @@ class TempoDisplay:
         )
     
     def _format(self):
-        return f"{self.tempo:.0f} BPM | {self.time_sig}/4"
-    
+        return f"{self.tempo:.0f} BPM"
+        # return f"{self.tempo:.0f} BPM | {self.time_sig}/4"
+
     def update(self, tempo=None, time_sig=None, page_update_fn=None):
         try:
             if tempo is not None:
@@ -102,14 +104,42 @@ class MetronomeButton:
     def __init__(self, get_color_fn, on_click_fn):
         self.get_color = get_color_fn
         self.is_on = False
-        self.button = ft.ElevatedButton(
-            icon=ft.Icons.MUSIC_OFF,
-            text="CLICK OFF",
-            on_click=on_click_fn,
-            width=220,
-            height=150
+        
+        # Texto centrado
+        self.text = ft.Text(
+            "CLICK OFF",
+            size=16,
+            weight=ft.FontWeight.BOLD,
+            color=ft.Colors.WHITE,
+            text_align=ft.TextAlign.CENTER
         )
-        self._update_style()
+        
+        # Imagen de fondo (marca de agua)
+        self.watermark_icon = icon("metronome3", size=80, color=ft.Colors.WHITE24)
+        self.watermark = ft.Container(
+            content=self.watermark_icon,
+            alignment=ft.alignment.center
+        )
+        
+        # Stack: imagen de fondo + texto encima
+        self.button = ft.Container(
+            content=ft.Stack(
+                controls=[
+                    self.watermark,  # Fondo
+                    ft.Container(
+                        content=self.text,
+                        alignment=ft.alignment.center
+                    )  # Texto encima
+                ]
+            ),
+            width=220,
+            height=150,
+            border_radius=10,
+            bgcolor=get_color_fn("button_metro"),
+            on_click=on_click_fn,
+            ink=True,
+            alignment=ft.alignment.center
+        )
     
     def set_state(self, is_on: bool):
         """Establece el estado - SÍNCRONO"""
@@ -122,11 +152,16 @@ class MetronomeButton:
     def _update_style(self):
         """Actualiza el estilo del botón"""
         try:
-            self.button.icon = ft.Icons.MUSIC_NOTE if self.is_on else ft.Icons.MUSIC_OFF
-            self.button.text = "CLICK ON" if self.is_on else "CLICK OFF"
-            self.button.style = ft.ButtonStyle(
-                color=self.get_color("button_text"),
-                bgcolor=self.get_color("button_metro_on" if self.is_on else "button_metro")
-            )
+            # Actualizar texto
+            self.text.value = "" if self.is_on else ""
+            
+            # Actualizar color de fondo
+            self.button.bgcolor = self.get_color("button_metro_on" if self.is_on else "button_metro")
+            
+            # Actualizar marca de agua (más visible cuando está ON)
+            icon_name = "metronome_off" if self.is_on else "metronome3"
+            opacity = ft.Colors.WHITE38 if self.is_on else ft.Colors.WHITE24
+            self.watermark.content = icon(icon_name, size=80, color=opacity)
+            
         except Exception as e:
             log_error(f"[ERROR] MetronomeButton._update_style: {e}", "UI", e)
