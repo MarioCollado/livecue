@@ -5,6 +5,7 @@
 import flet as ft
 import threading
 import time
+import asyncio
 from core.state import state
 from ui.themes import ThemeManager
 from ui.components import StatusBar
@@ -134,16 +135,27 @@ class TrackListView:
             traceback.print_exc()
 
     def _create_track_item(self, track_index: int, track):
-        """Crea un item de track con validación"""
+        """Crea un item de track con validación y animación"""
         try:
             is_selected = track_index == state.current_index
             has_sections = len(track.sections) > 0
             is_expanded = track.expanded
             
             header = self._create_track_header(track_index, track, is_selected, has_sections, is_expanded)
-            sections = self._create_sections(track_index, track) if is_expanded and has_sections else None
             
-            track_column = ft.Column(spacing=0, controls=[header] + ([sections] if sections else []))
+            # 🆕 Container PERSISTENTE siempre visible
+            sections_container = ft.Container(
+                content=self._create_sections_content(track_index, track) if (is_expanded and has_sections) else ft.Column(spacing=0, controls=[]),
+                padding=ft.padding.only(top=8 if (is_expanded and has_sections) else 0),
+                animate_size=300,  # 🆕 Un poco más lento
+                animate_opacity=250,
+                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            )
+            
+            track_column = ft.Column(
+                spacing=0,
+                controls=[header, sections_container],
+            )
             
             # Validar que header se creó correctamente
             if not header:
@@ -168,12 +180,11 @@ class TrackListView:
             
         except Exception as e:
             print(f"[ERROR] _create_track_item({track_index}): {e}")
-            # Devolver un container de placeholder en caso de error
             return ft.Container(
                 content=ft.Text(f"Error: Track {track_index + 1}", color=ft.Colors.RED),
                 padding=10
             )
-        
+    
     def _create_track_header(self, track_index, track, is_selected, has_sections, is_expanded):
         return ft.Container(
             content=ft.Column(
@@ -232,9 +243,10 @@ class TrackListView:
         bgcolor=self.theme.get("bg_card"),
         border=ft.border.all(2, self.theme.get("accent")) if is_selected else None,
         on_click=self._create_track_click_handler(track_index),  
-    )   
+    )
 
-    def _create_sections(self, track_index, track):
+    def _create_sections_content(self, track_index, track):
+        """Crea SOLO el contenido de las secciones (sin el Container wrapper)"""
         section_items = []
         for sec_idx, section in enumerate(track.sections):
             section_items.append(
@@ -256,9 +268,20 @@ class TrackListView:
                     bgcolor=self.theme.get("bg_secondary"),
                     on_click=self._create_section_click_handler(track_index, sec_idx),  
                     ink=True,
+                    animate_opacity=150,
                 )
             )
-        return ft.Container(content=ft.Column(spacing=4, controls=section_items), padding=ft.padding.only(top=8))
+        
+        return ft.Column(spacing=4, controls=section_items)
+
+    def _create_sections(self, track_index, track):
+        """Mantener este método para compatibilidad (usado en update completo)"""
+        return ft.Container(
+            content=self._create_sections_content(track_index, track),
+            padding=ft.padding.only(top=8),
+            animate_size=250,
+            animate_opacity=200,
+        )
 
     def _create_drag_feedback(self, track_index, track):
         return ft.Container(
@@ -403,23 +426,24 @@ class TrackListView:
     # ASYNC CALLBACKS
     # ============================================
     async def _on_track_click(self, track_index):
-        """Click en track - ASYNC con auto-expand"""
+        """Click en track - ASYNC con auto-expand SIN recrear toda la lista"""
         if 0 <= track_index < len(state.tracks):
             tracks_list = state.tracks
             previous_index = state.current_index
             
-            # 🆕 PROTECCIÓN: No ejecutar auto-expand si aún no hay selección válida
-            # (evita problemas durante inicialización)
-            if previous_index >= 0:  # Solo si ya había algo seleccionado
+            # PROTECCIÓN: No ejecutar auto-expand si aún no hay selección válida
+            if previous_index >= 0:
                 # Si haces click en el mismo track que ya está seleccionado
                 if previous_index == track_index:
                     # Toggle: colapsar/expandir el actual
                     tracks_list[track_index].expanded = not tracks_list[track_index].expanded
                     state.tracks = tracks_list
                     
+                    # Actualizar SOLO ese track item (no toda la lista)
+                    await self._update_single_track(track_index)
+                    
                     StatusBar.instance.text.value = f"● {state.tracks[track_index].title}"
                     StatusBar.instance.text.color = self.theme.get("accent")
-                    await self.update()
                     return
                 
                 # Colapsar el track anterior si es diferente
@@ -431,22 +455,28 @@ class TrackListView:
             
             # Actualizar índice actual
             state.current_index = track_index
-            state.tracks = tracks_list  # Forzar setter
+            state.tracks = tracks_list
 
             StatusBar.instance.text.value = f"● Seleccionado: {state.tracks[track_index].title}"
             StatusBar.instance.text.color = self.theme.get("accent")
-            await self.update()
+            
+            # Actualizar solo los tracks afectados
+            if previous_index >= 0 and previous_index != track_index:
+                await self._update_single_track(previous_index)
+            await self._update_single_track(track_index)
 
     async def _toggle_expand(self, track_index):
-        """Toggle expand de secciones - ASYNC (manual con flecha)"""
+        """Toggle expand de secciones - ASYNC (manual con flecha) SIN recrear lista"""
         if 0 <= track_index < len(state.tracks):
             tracks_list = state.tracks
             
             # Toggle manual: simplemente invierte el estado actual
             tracks_list[track_index].expanded = not tracks_list[track_index].expanded
             
-            state.tracks = tracks_list  # Forzar setter
-            await self.update()
+            state.tracks = tracks_list
+            
+            # Actualizar SOLO ese track item
+            await self._update_single_track(track_index)
             
     async def _on_section_click(self, track_index, section_index):
         """Click en sección - ASYNC"""
@@ -458,6 +488,48 @@ class TrackListView:
                 self.page.update()
         except Exception as e:
             print(f"[ERROR] _on_section_click: {e}")
+
+    async def _update_single_track(self, track_index):
+        """Actualiza solo un track específico para preservar animaciones"""
+        try:
+            if not (0 <= track_index < len(self.column.controls)):
+                return
+            
+            track = state.tracks[track_index]
+            is_selected = track_index == state.current_index
+            has_sections = len(track.sections) > 0
+            is_expanded = track.expanded
+            
+            # Obtener el control existente (Draggable -> DragTarget -> Column)
+            draggable = self.column.controls[track_index]
+            drag_target = draggable.content
+            track_column = drag_target.content
+            
+            # Actualizar header
+            track_column.controls[0] = self._create_track_header(
+                track_index, track, is_selected, has_sections, is_expanded
+            )
+            
+            # 🆕 SOLUCIÓN SIMPLE: Modificar solo el contenido
+            sections_container = track_column.controls[1]
+            
+            if is_expanded and has_sections:
+                sections_container.content = self._create_sections_content(track_index, track)
+                sections_container.padding = ft.padding.only(top=8)
+            else:
+                sections_container.content = ft.Column(spacing=0, controls=[])  # 🆕 Column vacía en lugar de None
+                sections_container.padding = ft.padding.only(top=0)
+            
+            # 🆕 NO tocar height ni visible - dejar que animate_size haga su trabajo
+            
+            # Actualizar
+            self.page.update()
+            
+        except Exception as e:
+            print(f"[ERROR] _update_single_track({track_index}): {e}")
+            import traceback
+            traceback.print_exc()
+            await self.update()
 
 # ============================================
 # UPDATE DEBOUNCER

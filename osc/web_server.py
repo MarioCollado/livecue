@@ -12,7 +12,32 @@ from ui.templates.controller_html import CONTROLLER_HTML
 from core.logger import log_info, log_error, log_warning, log_debug
 import threading
 import socket
+import time
 from core.state import state 
+
+# 🆕 DEBOUNCER para evitar múltiples plays rápidos
+class PlaybackDebouncer:
+    def __init__(self, delay=0.3):
+        self.delay = delay
+        self.last_play_time = 0
+        self.lock = threading.Lock()
+    
+    def can_play(self):
+        """Retorna True si ha pasado suficiente tiempo desde el último play"""
+        with self.lock:
+            now = time.time()
+            if now - self.last_play_time > self.delay:
+                self.last_play_time = now
+                return True
+            log_debug(f"⏱️  Play throttled (esperando {self.delay}s)", module="UI")
+            return False
+    
+    def reset(self):
+        """Resetea el timer (útil después de un stop)"""
+        with self.lock:
+            self.last_play_time = 0
+
+play_debouncer = PlaybackDebouncer(delay=0.3)
 
 class WebControllerServer:
     def __init__(self, playback_controller, state, port=5000):
@@ -41,11 +66,22 @@ class WebControllerServer:
         def play():
             try:
                 index = int(request.form.get("index", 0))
+                
+                # 🆕 DEBOUNCE: Rechazar si es muy rápido
+                if not play_debouncer.can_play():
+                    log_warning(f"📱 Web: Play {index} rechazado (throttling)", module="UI")
+                    return jsonify({"status": "throttled", "message": "Too fast, wait a moment"}), 429
+                
                 log_info(f"📱 Web: Play track {index} desde {request.remote_addr}", module="UI")
 
                 def worker(idx):
                     try:
                         log_debug(f"Worker: Ejecutando play_track({idx})", module="UI")
+                        
+                        # 🆕 STOP PREVIO para limpiar cualquier reproducción
+                        self.playback.stop()
+                        time.sleep(0.1)  # Pequeña pausa
+                        
                         ok = self.playback.play_track(idx)
                         log_debug(f"Worker: play_track({idx}) = {ok}", module="UI")
                     except Exception as e:
@@ -65,10 +101,22 @@ class WebControllerServer:
             try:
                 log_info(f"📱 Web: Stop desde {request.remote_addr}", module="UI")
                 
+                # 🆕 Resetear debouncer al hacer stop
+                play_debouncer.reset()
+                
                 def worker():
-                    log_debug("Worker: Ejecutando stop", module="UI")
-                    self.playback.stop()
-                    self.state.needs_ui_refresh = True
+                    try:
+                        log_debug("Worker: Ejecutando stop", module="UI")
+                        
+                        # 🆕 STOP MÚLTIPLE para asegurar que mata todo
+                        for _ in range(2):
+                            self.playback.stop()
+                            time.sleep(0.05)
+                        
+                        self.state.needs_ui_refresh = True
+                        log_debug("Worker: Stop completado", module="UI")
+                    except Exception as e:
+                        log_error("Worker: Error en stop", module="UI", exc=e)
 
                 threading.Thread(target=worker, daemon=True).start()
                 return ("", 204)
@@ -91,7 +139,6 @@ class WebControllerServer:
                 threading.Thread(target=worker, daemon=True).start()
                 
                 # Esperar un poquito a que se actualice el estado
-                import time
                 time.sleep(0.05)
                 
                 # Retornar estado actual
@@ -111,6 +158,36 @@ class WebControllerServer:
                 return jsonify({"state": is_on})
             except Exception as e:
                 log_error("Web: Error obteniendo estado metrónomo", module="UI", exc=e)
+                return jsonify({"error": str(e)}), 500
+
+        # 🆕 NUEVO ENDPOINT: Panic button
+        @self.app.route('/panic', methods=['POST'])
+        def panic_stop():
+            """Stop de emergencia - mata todo"""
+            try:
+                log_warning(f"📱 Web: PANIC STOP desde {request.remote_addr}", module="UI")
+                
+                # Resetear debouncer
+                play_debouncer.reset()
+                
+                def worker():
+                    try:
+                        # Stop múltiple agresivo
+                        for i in range(3):
+                            self.playback.stop()
+                            time.sleep(0.05)
+                        
+                        self.state.is_playing = False
+                        self.state.needs_ui_refresh = True
+                        log_info("✓ Panic stop completado", module="UI")
+                    except Exception as e:
+                        log_error("Worker: Error en panic stop", module="UI", exc=e)
+                
+                threading.Thread(target=worker, daemon=True).start()
+                return jsonify({"status": "ok", "message": "Panic stop executed"})
+                
+            except Exception as e:
+                log_error("Web: Error en panic stop", module="UI", exc=e)
                 return jsonify({"error": str(e)}), 500
 
     def start(self):

@@ -91,12 +91,13 @@ class PlaybackController:
                 log_info(f"▶ Reproduciendo: {track.title}", module="Playback")
                 log_debug(f"Track index: {track_index}, Locator ID: {locator_id}", module="Playback")
                 
-                # Secuencia de reproducción
-                send_message("/live/song/stop_playing", [])
-                time.sleep(0.08)
+                # 🆕 STOP AGRESIVO primero para limpiar cualquier reproducción
+                self._force_stop_internal()
+                time.sleep(0.12)  # Pausa más larga para asegurar stop completo
                 
+                # Secuencia de reproducción
                 send_message("/live/song/cue_point/jump", [locator_id])
-                time.sleep(0.08)
+                time.sleep(0.1)
                 
                 send_message("/live/song/start_playing", [])
                 
@@ -111,13 +112,34 @@ class PlaybackController:
                 log_error(f"Error reproduciendo track '{track.title}'", module="Playback", exc=e)
                 return False
     
+    def _force_stop_internal(self):
+        """Stop interno más agresivo - NO usa lock (llamado desde dentro de lock)"""
+        try:
+            # Enviar stop múltiples veces para asegurar
+            for _ in range(2):
+                send_message("/live/song/stop_playing", [])
+                time.sleep(0.03)
+            
+            log_debug("Stop interno forzado", module="Playback")
+        except Exception as e:
+            log_error("Error en stop interno", module="Playback", exc=e)
+    
     def stop(self):
-        """Detiene la reproducción - Thread-safe"""
+        """Detiene la reproducción - Thread-safe con stop agresivo"""
         with self._playback_lock:
             try:
-                send_message("/live/song/stop_playing", [])
+                log_info("■ Deteniendo reproducción...", module="Playback")
+                
+                # 🆕 STOP MÚLTIPLE para asegurar que mata todo
+                for i in range(2):
+                    send_message("/live/song/stop_playing", [])
+                    time.sleep(0.05)
+                    log_debug(f"Stop enviado ({i+1}/2)", module="Playback")
+                
+                # Actualizar estado
                 state.is_playing = False
-                log_info("■ Stop", module="Playback")
+                
+                log_info("■ Reproducción detenida", module="Playback")
                                             
             except Exception as e:
                 log_error("Error deteniendo reproducción", module="Playback", exc=e)
@@ -140,11 +162,12 @@ class PlaybackController:
                 log_info(f"⇒ Saltando a: {section.name} (beat {section.beat})", module="Playback")
                 log_debug(f"Track: {track.title}, Section: {section.name}", module="Playback")
                 
-                send_message("/live/song/stop_playing", [])
-                time.sleep(0.05)
+                # 🆕 Stop limpio antes de saltar
+                self._force_stop_internal()
+                time.sleep(0.08)
                 
                 send_message("/live/song/set/current_song_time", [section.beat])
-                time.sleep(0.05)
+                time.sleep(0.08)
                 
                 send_message("/live/song/start_playing", [])
                 
