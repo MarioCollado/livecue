@@ -140,27 +140,30 @@ class TrackListView:
             is_selected = track_index == state.current_index
             has_sections = len(track.sections) > 0
             is_expanded = track.expanded
-            
+
+            # Header fijo primero
             header = self._create_track_header(track_index, track, is_selected, has_sections, is_expanded)
-            
-            # 🆕 Container PERSISTENTE siempre visible
+
+            # Contenedor de secciones animado SOLO verticalmente
             sections_container = ft.Container(
                 content=self._create_sections_content(track_index, track) if (is_expanded and has_sections) else ft.Column(spacing=0, controls=[]),
-                padding=ft.padding.only(top=8 if (is_expanded and has_sections) else 0),
-                animate_size=300,  # 🆕 Un poco más lento
-                animate_opacity=250,
-                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                animate_opacity=300,
+                animate_size=50,
+                opacity=1.0 if is_expanded else 0.0,
+                clip_behavior=ft.ClipBehavior.HARD_EDGE,
             )
-            
+
+            # Column principal: header fijo, secciones debajo
             track_column = ft.Column(
                 spacing=0,
                 controls=[header, sections_container],
             )
-            
-            # Validar que header se creó correctamente
+
+            # Validación
             if not header:
                 raise ValueError(f"Header nulo para track {track_index}")
-            
+
+            # Drag & Drop
             drag_target = ft.DragTarget(
                 group="tracks",
                 content=track_column,
@@ -168,16 +171,16 @@ class TrackListView:
                 on_accept=self._create_drag_accept_handler(track_index),
                 on_leave=self._on_drag_leave
             )
-            
+
             draggable = ft.Draggable(
                 group="tracks",
                 content=drag_target,
                 content_feedback=self._create_drag_feedback(track_index, track),
                 on_drag_start=self._create_drag_start_handler(track_index)
             )
-            
+
             return draggable
-            
+
         except Exception as e:
             print(f"[ERROR] _create_track_item({track_index}): {e}")
             return ft.Container(
@@ -466,16 +469,23 @@ class TrackListView:
             await self._update_single_track(track_index)
 
     async def _toggle_expand(self, track_index):
-        """Toggle expand de secciones - ASYNC (manual con flecha) SIN recrear lista"""
+        """Toggle expand de secciones con borde primero y expand después"""
+
         if 0 <= track_index < len(state.tracks):
-            tracks_list = state.tracks
-            
-            # Toggle manual: simplemente invierte el estado actual
-            tracks_list[track_index].expanded = not tracks_list[track_index].expanded
-            
-            state.tracks = tracks_list
-            
-            # Actualizar SOLO ese track item
+            track = state.tracks[track_index]
+
+            # 1) Primero seleccionar el track VISUALMENTE (borde)
+            #    Sin expandirlo todavía.
+            track.expanded = False
+            state.current_index = track_index
+            await self._update_single_track(track_index)
+
+            # 2) Pequeño delay (un frame) para que el borde se vea ANTES de expandir
+            import asyncio
+            await asyncio.sleep(0.02)  # 20 ms
+
+            # 3) Ahora sí: expandir
+            track.expanded = True
             await self._update_single_track(track_index)
             
     async def _on_section_click(self, track_index, section_index):
@@ -494,37 +504,43 @@ class TrackListView:
         try:
             if not (0 <= track_index < len(self.column.controls)):
                 return
-            
+
             track = state.tracks[track_index]
             is_selected = track_index == state.current_index
             has_sections = len(track.sections) > 0
             is_expanded = track.expanded
-            
-            # Obtener el control existente (Draggable -> DragTarget -> Column)
+
             draggable = self.column.controls[track_index]
             drag_target = draggable.content
             track_column = drag_target.content
-            
-            # Actualizar header
+
+            # Actualizar header con borde primero
             track_column.controls[0] = self._create_track_header(
                 track_index, track, is_selected, has_sections, is_expanded
             )
-            
-            # 🆕 SOLUCIÓN SIMPLE: Modificar solo el contenido
+
+            # Obtener container de secciones
             sections_container = track_column.controls[1]
-            
+
             if is_expanded and has_sections:
+                # Expandir: primero animar opacity y size, después actualizar contenido
+                sections_container.opacity = 1.0
+                sections_container.animate_size = 200
+                sections_container.padding = ft.padding.only(top=14)
+                self.page.update()
+                await asyncio.sleep(0.3)  # esperar animación
                 sections_container.content = self._create_sections_content(track_index, track)
-                sections_container.padding = ft.padding.only(top=8)
+                self.page.update()
             else:
-                sections_container.content = ft.Column(spacing=0, controls=[])  # 🆕 Column vacía en lugar de None
+                # Colapsar: animar opacity y size, luego limpiar contenido
+                sections_container.opacity = 0.0
+                sections_container.animate_size = 450
                 sections_container.padding = ft.padding.only(top=0)
-            
-            # 🆕 NO tocar height ni visible - dejar que animate_size haga su trabajo
-            
-            # Actualizar
-            self.page.update()
-            
+                self.page.update()
+                await asyncio.sleep(0.3)  # esperar animación
+                sections_container.content = ft.Column(spacing=0, controls=[])
+                self.page.update()
+
         except Exception as e:
             print(f"[ERROR] _update_single_track({track_index}): {e}")
             import traceback
