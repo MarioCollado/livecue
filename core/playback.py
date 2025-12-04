@@ -145,7 +145,7 @@ class PlaybackController:
                 log_error("Error deteniendo reproducción", module="Playback", exc=e)
     
     def jump_to_section(self, track_index: int, section_index: int) -> bool:
-        """Salta a una sección específica - Thread-safe"""
+        """Salta a una sección específica y reproduce desde ahí - Thread-safe"""
         with self._playback_lock:
             if not (0 <= track_index < len(state.tracks)):
                 log_error(f"Índice de track inválido: {track_index}", module="Playback")
@@ -162,19 +162,19 @@ class PlaybackController:
                 log_info(f"⇒ Saltando a: {section.name} (beat {section.beat})", module="Playback")
                 log_debug(f"Track: {track.title}, Section: {section.name}", module="Playback")
                 
-                # 🆕 Stop limpio antes de saltar
-                self._force_stop_internal()
-                time.sleep(0.08)
-                
+                # CRÍTICO: Posicionar primero (sin stop previo)
                 send_message("/live/song/set/current_song_time", [section.beat])
-                time.sleep(0.08)
+                time.sleep(0.12)  # Delay aumentado para que Ableton procese la posición
                 
-                send_message("/live/song/start_playing", [])
+                # Usar continue_playing en lugar de start_playing
+                # continue_playing respeta la posición actual del cursor
+                send_message("/live/song/continue_playing", [])
+                time.sleep(0.05)  # Pequeño delay para confirmar el start
                 
                 state.is_playing = True
                 state.current_index = track_index
                 
-                log_debug(f"Salto completado: current_index={track_index}", module="Playback")
+                log_debug(f"Salto completado: current_index={track_index}, beat={section.beat}", module="Playback")
                 return True
                 
             except Exception as e:

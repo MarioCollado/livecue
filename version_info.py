@@ -1,2 +1,2 @@
 # version_info.py
-APP_VERSION = "4.0.0-BETA"
+APP_VERSION = "4.0.0-beta.2"
