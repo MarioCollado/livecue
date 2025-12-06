@@ -13,6 +13,7 @@ from core.utils import icon
 from ui.track_list import TrackListView
 from setlist.manager import manager
 from ui.components import MetronomeButton, TempoDisplay, BeatIndicator, StatusBar
+from core.i18n import i18n
 
 DEBOUNCE_NAV_MS = 300
 
@@ -163,7 +164,7 @@ class ControlPanel:
             is_on = playback.toggle_metronome()
             self.metronome_btn.set_state(is_on)
             
-            StatusBar.instance.text.value = f"● Metrónomo: {'ON' if is_on else 'OFF'}"
+            StatusBar.instance.text.value = i18n.get("status_metronome", i18n.get("status_metronome_on") if is_on else i18n.get("status_metronome_off"))
             StatusBar.instance.text.color = self.theme.get("button_metro_on") if is_on else self.theme.get("text_secondary")
             self.page.update()
         except Exception as ex:
@@ -175,7 +176,7 @@ class ControlPanel:
             track_count = state.get_track_count()
             
             if current_idx < 0 or current_idx >= track_count:
-                StatusBar.instance.text.value = "● Sin track seleccionado"
+                StatusBar.instance.text.value = i18n.get("status_no_track_selected")
                 StatusBar.instance.text.color = self.theme.get("button_stop")
                 self.page.update()
                 return
@@ -186,12 +187,12 @@ class ControlPanel:
             
             if playback.play_track(current_idx):
                 track = state.tracks[current_idx]
-                StatusBar.instance.text.value = f"● ▶ Play: {track.title}"
+                StatusBar.instance.text.value = i18n.get("status_play", track.title)
                 StatusBar.instance.text.color = self.theme.get("button_play")
                 self.page.update()
                 await TrackListView.instance.update()
             else:
-                StatusBar.instance.text.value = "● Error al reproducir"
+                StatusBar.instance.text.value = i18n.get("status_play_error")
                 StatusBar.instance.text.color = self.theme.get("button_stop")
                 self.page.update()
         except Exception as ex:
@@ -200,7 +201,7 @@ class ControlPanel:
     async def _on_stop(self, e):
         try:
             playback.stop()
-            StatusBar.instance.text.value = "● ▪ Stop"
+            StatusBar.instance.text.value = i18n.get("status_stop")
             StatusBar.instance.text.color = self.theme.get("button_stop")
             self.page.update()
         except Exception as ex:
@@ -217,11 +218,11 @@ class ControlPanel:
                 
                 track = state.get_current_track()
                 if track:
-                    StatusBar.instance.text.value = f"● ▶ Next: {track.title}"
+                    StatusBar.instance.text.value = i18n.get("status_next", track.title)
                     StatusBar.instance.text.color = self.theme.get("button_play")
                     self.page.update()
             else:
-                StatusBar.instance.text.value = "● ⊘ Último track"
+                StatusBar.instance.text.value = i18n.get("status_last_track")
                 StatusBar.instance.text.color = self.theme.get("text_secondary")
                 self.page.update()
         except Exception as ex:
@@ -238,11 +239,11 @@ class ControlPanel:
                 
                 track = state.get_current_track()
                 if track:
-                    StatusBar.instance.text.value = f"● ▶ Prev: {track.title}"
+                    StatusBar.instance.text.value = i18n.get("status_prev", track.title)
                     StatusBar.instance.text.color = self.theme.get("button_play")
                     self.page.update()
             else:
-                StatusBar.instance.text.value = "● ⊘ Primer track"
+                StatusBar.instance.text.value = i18n.get("status_first_track")
                 StatusBar.instance.text.color = self.theme.get("text_secondary")
                 self.page.update()
         except Exception as ex:
@@ -270,7 +271,7 @@ class ControlPanel:
         self.scan_icon = icon("search2",size=24,color=ft.Colors.WHITE)
         
         # Texto
-        self.scan_text = ft.Text("SCAN", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+        self.scan_text = ft.Text(i18n.get("scan_btn"), size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
         
         return ft.Container(
             content=ft.Row(
@@ -301,19 +302,19 @@ class ControlPanel:
         try:
             # PASO 1: Activar modo scanning
             state.is_scanning = True
-            self._update_scan_ui("Iniciando escaneo...", 0, scanning=True)
+            self._update_scan_ui(i18n.get("scan_starting"), 0, scanning=True)
             await asyncio.sleep(0.3)
             
             # PASO 2: Conectando con Ableton
-            self._update_scan_ui("Conectando con Ableton Live...", 15, scanning=True)
+            self._update_scan_ui(i18n.get("scan_connecting"), 15, scanning=True)
             await asyncio.sleep(0.3)
             
             # PASO 3: Detectando locators
-            self._update_scan_ui("Detectando locators...", 35, scanning=True)
+            self._update_scan_ui(i18n.get("scan_detecting"), 35, scanning=True)
             await asyncio.sleep(0.2)
             
             # PASO 4: Ejecutar scan real
-            self._update_scan_ui("Procesando tracks...", 60, scanning=True)
+            self._update_scan_ui(i18n.get("scan_processing"), 60, scanning=True)
             
             # Ejecutar scan en thread separado para no bloquear UI
             scan_success = await asyncio.get_event_loop().run_in_executor(
@@ -323,11 +324,11 @@ class ControlPanel:
             
             if scan_success:
                 # PASO 5: Procesando secciones
-                self._update_scan_ui("Identificando secciones...", 85, scanning=True)
+                self._update_scan_ui(i18n.get("scan_sections"), 85, scanning=True)
                 await asyncio.sleep(0.4)
                 
                 # PASO 6: Finalizando
-                self._update_scan_ui("Finalizando...", 95, scanning=True)
+                self._update_scan_ui(i18n.get("scan_finalizing"), 95, scanning=True)
                 await asyncio.sleep(0.2)
                 
                 # Actualizar índice
@@ -338,9 +339,9 @@ class ControlPanel:
                 
                 # PASO 7: Completado
                 track_count = state.get_track_count()
-                self._update_scan_ui(f"✓ {track_count} tracks encontrados", 100, scanning=True)
+                self._update_scan_ui(i18n.get("scan_found", track_count), 100, scanning=True)
                 
-                StatusBar.instance.text.value = f"● ✓ Scan completo: {track_count} tracks"
+                StatusBar.instance.text.value = f"● {i18n.get('status_scan_complete', track_count)}"
                 StatusBar.instance.text.color = self.theme.get("button_play")
                 
                 # Mostrar mensaje de éxito 1.5 segundos
@@ -348,8 +349,8 @@ class ControlPanel:
                 
             else:
                 # Error en scan
-                self._update_scan_ui("✗ Error en escaneo", 0, scanning=True)
-                StatusBar.instance.text.value = "● ✗ Error en scan"
+                self._update_scan_ui(i18n.get("scan_error"), 0, scanning=True)
+                StatusBar.instance.text.value = f"● {i18n.get('status_scan_error')}"
                 StatusBar.instance.text.color = self.theme.get("button_stop")
                 await asyncio.sleep(2)
             
@@ -358,7 +359,7 @@ class ControlPanel:
             import traceback
             traceback.print_exc()
             
-            self._update_scan_ui("✗ Error crítico", 0, scanning=True)
+            self._update_scan_ui(i18n.get("scan_error_critical"), 0, scanning=True)
             StatusBar.instance.text.value = f"● ✗ Error: {str(ex)}"
             StatusBar.instance.text.color = self.theme.get("button_stop")
             await asyncio.sleep(2)
@@ -380,7 +381,7 @@ class ControlPanel:
                 # Modo scanning
                 self.scan_icon.visible = False
                 self.scan_spinner.visible = True
-                self.scan_text.value = "Escaneando..."
+                self.scan_text.value = i18n.get("scan_scanning")
                 self.scan_btn.disabled = True
                 self.scan_progress_bar.visible = True
                 self.scan_progress_bar.value = progress / 100
@@ -391,7 +392,7 @@ class ControlPanel:
                 # Modo normal
                 self.scan_icon.visible = True
                 self.scan_spinner.visible = False
-                self.scan_text.value = "SCAN"
+                self.scan_text.value = i18n.get("scan_btn")
                 self.scan_btn.disabled = False
                 self.scan_progress_bar.visible = False
             

@@ -10,6 +10,7 @@ from ui.themes import ThemeManager
 from setlist.manager import manager
 from core.playback import playback
 from ui.track_list import TrackListView
+from core.i18n import i18n
 
 # ============================================
 # DIALOG MANAGER
@@ -21,16 +22,16 @@ class DialogManager:
 
     async def show_save_setlist(self):
         if not state.locators:
-            StatusBar.instance.text.value = "● ⚠️ Sin locators. Presiona SCAN primero"
+            StatusBar.instance.text.value = f"● {i18n.get('dialog_save_warning_no_locators')}"
             StatusBar.instance.text.color = self.theme.get("button_stop")
             self.page.update()
             return
 
         name_field = ft.TextField(
-            label="Nombre del setlist",
+            label=i18n.get("dialog_save_name_label"),
             width=350,
             autofocus=True,
-            hint_text="Ej: Concierto 2024",
+            hint_text=i18n.get("dialog_save_name_hint"),
             bgcolor=self.theme.get("bg_card"),
             color=self.theme.get("text_primary"),
             border_color=self.theme.get("accent"),
@@ -44,25 +45,25 @@ class DialogManager:
         async def do_save(e=None):
             name = name_field.value.strip()
             if not name:
-                error_text.value = "⚠️ Debes ingresar un nombre"
+                error_text.value = i18n.get("dialog_save_error_empty_name")
                 error_text.visible = True
                 self.page.update()
                 return
 
             if manager.save(name, state.locators, state.tracks):
                 sections_count = sum(len(t.sections) for t in state.tracks)
-                StatusBar.instance.text.value = f"● ✓ '{name}' guardado ({len(state.locators)} locators, {len(state.tracks)} tracks, {sections_count} sections)"
+                StatusBar.instance.text.value = f"● {i18n.get('dialog_save_success', name, len(state.locators), len(state.tracks), sections_count)}"
                 StatusBar.instance.text.color = self.theme.get("button_play")
                 await close_dlg()
                 await self._update_setlist_counter()
             else:
-                error_text.value = "✖ Error al guardar"
+                error_text.value = i18n.get("dialog_save_error_failed")
                 error_text.visible = True
                 self.page.update()
 
         dlg = ft.AlertDialog(
             modal=True,
-            title=ft.Text("💾 Guardar Setlist", color=self.theme.get("text_primary")),
+            title=ft.Text(i18n.get("dialog_save_title"), color=self.theme.get("text_primary")),
             bgcolor=self.theme.get("bg_secondary"),
             content=ft.Column(
                 width=400,
@@ -71,7 +72,7 @@ class DialogManager:
                 controls=[
                     name_field,
                     ft.Text(
-                        f"Se guardarán {len(state.locators)} locators y {len(state.tracks)} tracks",
+                        i18n.get("dialog_save_info", len(state.locators), len(state.tracks)),
                         size=12, 
                         italic=True, 
                         color=self.theme.get("text_secondary")
@@ -80,8 +81,8 @@ class DialogManager:
                 ]
             ),
             actions=[
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.run_task(close_dlg, e)),
-                ft.FilledButton("💾 Guardar", on_click=lambda e: self.page.run_task(do_save, e))
+                ft.TextButton(i18n.get("cancel"), on_click=lambda e: self.page.run_task(close_dlg, e)),
+                ft.FilledButton(i18n.get("btn_save"), on_click=lambda e: self.page.run_task(do_save, e))
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )
@@ -101,7 +102,7 @@ class DialogManager:
             try:
                 data = manager.load(dropdown.value)
                 if not data or "locators" not in data:
-                    StatusBar.instance.text.value = "● ✖ Error al cargar"
+                    StatusBar.instance.text.value = f"● {i18n.get('dialog_load_error')}"
                     StatusBar.instance.text.color = self.theme.get("button_stop")
                     self.page.update()
                     return
@@ -119,7 +120,7 @@ class DialogManager:
                 await TrackListView.instance.update()
 
                 total_sections = sum(len(t.sections) for t in state.tracks)
-                StatusBar.instance.text.value = f"● ✓ '{data['name']}' cargado ({len(state.locators)} locators, {len(state.tracks)} tracks, {total_sections} sections)"
+                StatusBar.instance.text.value = f"● {i18n.get('dialog_load_success', data['name'], len(state.locators), len(state.tracks), total_sections)}"
                 StatusBar.instance.text.color = self.theme.get("button_play")
                 self.page.update()
                 await close_dlg()
@@ -130,7 +131,7 @@ class DialogManager:
 
         if saved:
             dropdown = ft.Dropdown(
-                label="Setlists guardados",
+                label=i18n.get("dialog_load_dropdown_label"),
                 options=[ft.dropdown.Option(name) for name in saved],
                 width=350,
                 bgcolor=self.theme.get("bg_card"),
@@ -143,7 +144,7 @@ class DialogManager:
                 controls=[
                     dropdown,
                     ft.Text(
-                        f"📁 {len(saved)} setlist(s) disponible(s)", 
+                        i18n.get("dialog_load_count", len(saved)), 
                         size=12, 
                         italic=True,
                         color=self.theme.get("text_secondary")
@@ -151,8 +152,8 @@ class DialogManager:
                 ]
             )
             actions = [
-                ft.TextButton("Cancelar", on_click=lambda e: self.page.run_task(close_dlg, e)),
-                ft.FilledButton("📂 Cargar", on_click=lambda e: self.page.run_task(do_load, e))
+                ft.TextButton(i18n.get("cancel"), on_click=lambda e: self.page.run_task(close_dlg, e)),
+                ft.FilledButton(i18n.get("btn_load"), on_click=lambda e: self.page.run_task(do_load, e))
             ]
         else:
             content = ft.Column(
@@ -160,20 +161,20 @@ class DialogManager:
                 tight=True,
                 spacing=12,
                 controls=[
-                    ft.Text("No hay setlists guardados", size=14, color=self.theme.get("text_primary")),
+                    ft.Text(i18n.get("dialog_load_empty"), size=14, color=self.theme.get("text_primary")),
                     ft.Text(
-                        "💡 Usa el botón 💾 para guardar tu primer setlist", 
+                        i18n.get("dialog_load_empty_hint"), 
                         size=11, 
                         italic=True,
                         color=self.theme.get("text_secondary")
                     )
                 ]
             )
-            actions = [ft.TextButton("Cerrar", on_click=lambda e: self.page.run_task(close_dlg, e))]
+            actions = [ft.TextButton(i18n.get("close"), on_click=lambda e: self.page.run_task(close_dlg, e))]
 
         dlg = ft.AlertDialog(
             modal=True,
-            title=ft.Text("📂 Cargar Setlist", color=self.theme.get("text_primary")),
+            title=ft.Text(i18n.get("dialog_load_title"), color=self.theme.get("text_primary")),
             bgcolor=self.theme.get("bg_secondary"),
             content=content,
             actions=actions,

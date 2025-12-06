@@ -15,8 +15,8 @@
 # 
 # Autor: Mario Collado Rodríguez
 # GitHub: https://github.com/MarioCollado/LiveCue
-# Versión: 2.0.0
-# Fecha: Noviembre 2025
+# Versión: 4.0.11-beta.2
+# Fecha: Diciembre 2025
 # ============================================================================
 
 """

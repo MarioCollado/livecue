@@ -7,6 +7,7 @@ import time
 import threading
 from core.logger import log_error
 from core.utils import icon
+from core.i18n import i18n
 
 class BeatIndicator:
     def __init__(self, get_color_fn):
@@ -95,7 +96,7 @@ class TempoDisplay:
 class StatusBar:
     def __init__(self, get_color_fn):
         self.get_color = get_color_fn
-        self.text = ft.Text("● Esperando...",
+        self.text = ft.Text(i18n.get("status_waiting"),
                             size=12, weight=ft.FontWeight.W_500,
                             color=get_color_fn("text_secondary"))
 

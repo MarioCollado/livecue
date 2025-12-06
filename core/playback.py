@@ -160,16 +160,23 @@ class PlaybackController:
             
             try:
                 log_info(f"⇒ Saltando a: {section.name} (beat {section.beat})", module="Playback")
-                log_debug(f"Track: {track.title}, Section: {section.name}", module="Playback")
+                log_debug(f"Track: {track.title}, Section: {section.name}, is_playing={state.is_playing}", module="Playback")
                 
-                # CRÍTICO: Posicionar primero (sin stop previo)
+                # CRÍTICO: Primero posicionar el cursor
                 send_message("/live/song/set/current_song_time", [section.beat])
-                time.sleep(0.12)  # Delay aumentado para que Ableton procese la posición
+                time.sleep(0.15)  # Delay aumentado para asegurar que Ableton procesa
                 
-                # Usar continue_playing en lugar de start_playing
-                # continue_playing respeta la posición actual del cursor
-                send_message("/live/song/continue_playing", [])
-                time.sleep(0.05)  # Pequeño delay para confirmar el start
+                # SOLUCIÓN: Decidir según el estado actual
+                if state.is_playing:
+                    # Si está reproduciendo, usar continue para no interrumpir
+                    log_debug("Estado: reproduciendo → usando continue_playing", module="Playback")
+                    send_message("/live/song/continue_playing", [])
+                else:
+                    # Si está parado, DEBE usar start_playing
+                    log_debug("Estado: parado → usando start_playing", module="Playback")
+                    send_message("/live/song/start_playing", [])
+                
+                time.sleep(0.05)
                 
                 state.is_playing = True
                 state.current_index = track_index
@@ -180,7 +187,7 @@ class PlaybackController:
             except Exception as e:
                 log_error(f"Error saltando a sección '{section.name}'", module="Playback", exc=e)
                 return False
-    
+                    
     def toggle_metronome(self) -> bool:
         """Alterna el metrónomo - Thread-safe"""
         with self._playback_lock:

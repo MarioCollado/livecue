@@ -12,18 +12,18 @@ def show_about_dialog(page: ft.Page, theme_get_color):
         page.update()
         
     # --- Componentes Reutilizables ---
-    
+
     def _section_card(title, content_controls):
         return ft.Container(
             content=ft.Column(
-                spacing=8,
+                spacing=6,
                 controls=[
-                    ft.Text(title, size=11, weight=ft.FontWeight.BOLD, color=theme_get_color("accent")),
-                    ft.Column(spacing=4, controls=content_controls)
+                    ft.Text(title, size=12, weight=ft.FontWeight.BOLD, color=theme_get_color("accent")),
+                    ft.Column(spacing=3, controls=content_controls)
                 ]
             ),
             padding=12,
-            border_radius=8,
+            border_radius=10,
             bgcolor=theme_get_color("bg_card"),
             border=ft.border.all(1, theme_get_color("border"))
         )
@@ -34,10 +34,10 @@ def show_about_dialog(page: ft.Page, theme_get_color):
             controls=[
                 ft.Text(label, size=12, color=theme_get_color("text_secondary")),
                 ft.Text(
-                    value, 
-                    size=12, 
-                    color=theme_get_color("text_primary") if not is_link else theme_get_color("accent"),
-                    weight=ft.FontWeight.W_500 if not is_link else ft.FontWeight.BOLD,
+                    value,
+                    size=12,
+                    color=theme_get_color("accent") if is_link else theme_get_color("text_primary"),
+                    weight=ft.FontWeight.BOLD if is_link else ft.FontWeight.W_500,
                     selectable=True
                 )
             ]
@@ -53,30 +53,29 @@ def show_about_dialog(page: ft.Page, theme_get_color):
             )
         return content
 
-    # --- Contenido ---
-
+    # --- HEADER ---
     header = ft.Container(
         content=ft.Column(
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=8,
+            spacing=6,
             controls=[
                 ft.Container(
-                    content=ft.Icon(ft.Icons.AUDIOTRACK_ROUNDED, size=40, color=ft.Colors.WHITE),
-                    width=64, height=64, border_radius=32,
+                    content=ft.Icon(ft.Icons.AUDIOTRACK_ROUNDED, size=38, color=ft.Colors.WHITE),
+                    width=60, height=60, border_radius=30,
                     bgcolor=theme_get_color("accent"),
                     shadow=ft.BoxShadow(blur_radius=10, color=theme_get_color("accent") + "40"),
                     alignment=ft.alignment.center
                 ),
                 ft.Text(
                     i18n.get("app_name"),
-                    size=24,
+                    size=22,
                     weight=ft.FontWeight.BOLD,
                     color=theme_get_color("text_primary"),
                     text_align=ft.TextAlign.CENTER
                 ),
                 ft.Text(
                     i18n.get("about_subtitle"),
-                    size=13,
+                    size=12,
                     color=theme_get_color("text_secondary"),
                     text_align=ft.TextAlign.CENTER
                 ),
@@ -88,15 +87,84 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                         color=theme_get_color("button_text"),
                         text_align=ft.TextAlign.CENTER
                     ),
-                    padding=ft.padding.symmetric(horizontal=8, vertical=2),
-                    margin=ft.margin.only(top=4),
+                    padding=ft.padding.symmetric(horizontal=8, vertical=1),
+                    margin=ft.margin.only(top=2),
                     alignment=ft.alignment.center
                 )
             ]
         ),
-        padding=ft.padding.only(bottom=16)
+        padding=ft.padding.only(bottom=12)
     )
 
+    # --- DONACIÓN ---
+    donation_section = ft.Container(
+        content=ft.Column(
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=10,
+            controls=[
+                ft.Text("☕", size=30),
+                ft.Text(
+                    i18n.get("about_donation_title"),
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.AMBER_300
+                ),
+                ft.Text(
+                    i18n.get("about_donation_text"),
+                    size=11,
+                    color=theme_get_color("text_secondary"),
+                    text_align=ft.TextAlign.CENTER
+                ),
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=10,
+                    controls=[
+                        ft.ElevatedButton(
+                            content=ft.Row(
+                                spacing=6,
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text("💳", size=15),
+                                    ft.Text("PayPal", size=12, weight=ft.FontWeight.BOLD)
+                                ]
+                            ),
+                            style=ft.ButtonStyle(
+                                bgcolor="#0070ba",
+                                color=ft.Colors.WHITE,
+                                shape=ft.RoundedRectangleBorder(radius=8),
+                                padding=ft.padding.symmetric(horizontal=14, vertical=8)
+                            ),
+                            on_click=lambda e: page.launch_url("https://paypal.me/mariocollado1")
+                        ),
+                        ft.ElevatedButton(
+                            content=ft.Row(
+                                spacing=6,
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text("☕", size=15),
+                                    ft.Text("BuyMeACoffee", size=12, weight=ft.FontWeight.BOLD)
+                                ]
+                            ),
+                            style=ft.ButtonStyle(
+                                bgcolor="#ff5e5b",
+                                color=ft.Colors.WHITE,
+                                shape=ft.RoundedRectangleBorder(radius=8),
+                                padding=ft.padding.symmetric(horizontal=14, vertical=8)
+                            ),
+                            on_click=lambda e: page.launch_url("https://buymeacoffee.com/mcollado")
+                        )
+                    ]
+                )
+            ]
+        ),
+        padding=14,
+        border_radius=12,
+        bgcolor=ft.Colors.with_opacity(0.14, ft.Colors.AMBER_700),
+        border=ft.border.all(2, ft.Colors.with_opacity(0.25, ft.Colors.AMBER_300)),
+        margin=ft.margin.only(bottom=10)
+    )
+
+    # --- DEV INFO ---
     dev_section = _section_card(
         i18n.get("about_dev_title"),
         [
@@ -107,34 +175,36 @@ def show_about_dialog(page: ft.Page, theme_get_color):
         ]
     )
 
+    # --- LICENSE ---
     license_section = _section_card(
         i18n.get("about_license_title"),
         [
             ft.Row(
-                spacing=8,
+                spacing=6,
                 controls=[
-                    ft.Icon(ft.Icons.GAVEL_ROUNDED, size=14, color=theme_get_color("text_secondary")),
+                    ft.Icon(ft.Icons.GAVEL_ROUNDED, size=13, color=theme_get_color("text_secondary")),
                     ft.Text("CC BY-NC-SA 4.0", size=12, weight=ft.FontWeight.BOLD, color=theme_get_color("text_primary"))
                 ]
             ),
-            ft.Divider(height=12, color=theme_get_color("border")),
+            ft.Divider(height=10, color=theme_get_color("border")),
             ft.Row(
-                spacing=8,
+                spacing=6,
                 controls=[
-                    ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=14, color=ft.Colors.GREEN_400),
+                    ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=13, color=ft.Colors.GREEN_400),
                     ft.Text(i18n.get("about_license_personal"), size=11, color=theme_get_color("text_secondary"))
                 ]
             ),
             ft.Row(
-                spacing=8,
+                spacing=6,
                 controls=[
-                    ft.Icon(ft.Icons.CANCEL_ROUNDED, size=14, color=ft.Colors.RED_400),
+                    ft.Icon(ft.Icons.CANCEL_ROUNDED, size=13, color=ft.Colors.RED_400),
                     ft.Text(i18n.get("about_license_commercial"), size=11, color=theme_get_color("text_secondary"))
                 ]
             )
         ]
     )
 
+    # --- DISCLAIMER ---
     disclaimer = ft.Container(
         content=ft.Text(
             i18n.get("about_disclaimer"),
@@ -143,26 +213,26 @@ def show_about_dialog(page: ft.Page, theme_get_color):
             text_align=ft.TextAlign.CENTER,
             italic=True
         ),
-        padding=ft.padding.symmetric(vertical=8)
+        padding=ft.padding.symmetric(vertical=6)
     )
 
-    # --- Diálogo ---
-    
+    # --- DIALOG ---
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Container(width=0, height=0),
         title_padding=0,
-        content_padding=24,
+        content_padding=22,
         bgcolor=theme_get_color("bg_secondary"),
-        shape=ft.RoundedRectangleBorder(radius=16),
+        shape=ft.RoundedRectangleBorder(radius=14),
         content=ft.Container(
             width=360,
             content=ft.Column(
                 horizontal_alignment=ft.CrossAxisAlignment.START, 
                 tight=True,
-                spacing=16,
+                spacing=14,
                 controls=[
                     header,
+                    donation_section,
                     dev_section,
                     license_section,
                     disclaimer
@@ -173,10 +243,10 @@ def show_about_dialog(page: ft.Page, theme_get_color):
             ft.Container(
                 content=ft.Row(
                     alignment=ft.MainAxisAlignment.CENTER,
-                    spacing=12,
+                    spacing=10,
                     controls=[
                         ft.TextButton(
-                             i18n.get("about_view_license"),
+                            i18n.get("about_view_license"),
                             style=ft.ButtonStyle(color=theme_get_color("text_secondary")),
                             on_click=lambda e: page.launch_url("https://creativecommons.org/licenses/by-nc-sa/4.0/")
                         ),
@@ -185,13 +255,13 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                             style=ft.ButtonStyle(
                                 bgcolor=theme_get_color("accent"),
                                 color=theme_get_color("button_text"),
-                                shape=ft.RoundedRectangleBorder(radius=8)
+                                shape=ft.RoundedRectangleBorder(radius=6)
                             ),
                             on_click=close_dialog
                         )
                     ]
                 ),
-                padding=ft.padding.only(bottom=8)
+                padding=ft.padding.only(bottom=6)
             )
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER

@@ -12,6 +12,7 @@ from core.state import state
 from ui.themes import ThemeManager
 from ui.components import StatusBar
 from core.playback import playback
+from core.i18n import i18n
 
 
 # ============================================
@@ -132,7 +133,7 @@ class TrackItemBuilder:
                     color=self.theme.get("text_primary")
                 ),
                 ft.Text(
-                    f"{len(track.sections)} sections",
+                    i18n.get("track_sections_count", len(track.sections)),
                     size=11,
                     color=self.theme.get("text_secondary"),
                     visible=has_sections
@@ -161,19 +162,26 @@ class TrackItemBuilder:
         )
     
     def create_sections_content(self, track_index: int, track, page: ft.Page, on_section_click: Callable) -> ft.Column:
-        """Crea el contenido de las secciones"""
+        """Crea el contenido de las secciones con callbacks correctos"""
         section_items = []
+        
         for sec_idx, section in enumerate(track.sections):
-            # Crear handler síncrono que llama a page.run_task
+            # CRÍTICO: Crear closure para capturar valores correctos
+            # Sin esto, todos los callbacks usarían el último sec_idx del loop
             def make_handler(ti, si):
                 def handler(e):
-                    # Usar page pasado como parámetro
+                    print(f"[CALLBACK] Handler creado para track={ti}, section={si}")
                     page.run_task(on_section_click, ti, si)
                 return handler
             
+            # Pasar los valores ACTUALES de track_index y sec_idx
+            handler = make_handler(track_index, sec_idx)
+            
             section_items.append(
-                self._create_section_item_sync(track_index, sec_idx, section, make_handler(track_index, sec_idx))
+                self._create_section_item_sync(track_index, sec_idx, section, handler)
             )
+        
+        print(f"[SECTIONS] Creadas {len(section_items)} secciones para track {track_index}")
         return ft.Column(spacing=4, controls=section_items)
     
     def _create_section_item_sync(self, track_index: int, sec_idx: int, 
@@ -573,7 +581,7 @@ class TrackListView:
         state.current_index = track_index
         state.tracks = tracks_list
         
-        self._update_status(f"Seleccionado: {state.tracks[track_index].title}", "accent")
+        self._update_status(i18n.get("status_selected", state.tracks[track_index].title), "accent")
         
         if previous_index >= 0 and previous_index != track_index:
             await self.update_single_track(previous_index)
@@ -641,7 +649,7 @@ class TrackListView:
         # Restaurar opacidad
         self._restore_all_opacity()
         
-        self._update_status(f"✓ Reordenado: {moved_track.title}", "button_play")
+        self._update_status(i18n.get("status_reordered", moved_track.title), "button_play")
         
         await self.update()
         print(f"[DRAG] ✓ Reordenamiento completado")

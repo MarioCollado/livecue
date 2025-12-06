@@ -25,6 +25,7 @@ from ui.welcome_dialog import show_welcome_dialog
 from ui.dialogs import DialogManager
 from ui.track_list import TrackListView
 from ui.control_panel import ControlPanel
+from core.i18n import i18n
 
 
 # ============================================
@@ -235,15 +236,15 @@ class InitialScanManager:
         await asyncio.sleep(0.2)
         
         if TrackListView.instance:
+            # Forzar recreación completa para actualizar callbacks
+            print("[INIT] Forzando recreación de items tras scan...")
             await TrackListView.instance.update()
-            print("[INIT] ✓ UI actualizada correctamente")
             
-            # CRÍTICO: Forzar actualización de tema en todos los tracks
-            # Esto asegura que el fondo se pinte correctamente en el primer render
-            await asyncio.sleep(0.1)
+            # Segundo update para asegurar que callbacks están actualizados
+            await asyncio.sleep(0.15)
             await TrackListView.instance.update()
-            self.page.update()
-            print("[INIT] ✓ Tema aplicado correctamente")
+            
+            print("[INIT] ✓ UI actualizada correctamente")
             
             track_count = state.get_track_count()
             self.control_panel._update_scan_ui(
@@ -340,7 +341,7 @@ class ThemeChangeHandler:
             self._update_other_components()
             
             # Actualizar status
-            StatusBar.instance.text.value = f"● Paleta: {self.theme.current_name}"
+            StatusBar.instance.text.value = i18n.get("status_palette", self.theme.current_name)
             StatusBar.instance.text.color = self.theme.get("accent")
             
             # Actualizar lista y página
@@ -515,7 +516,6 @@ class AppBuilder:
     
     def _setup_layout(self):
         """Configura el layout de la aplicación"""
-        # Listbox container
         self.listbox_container = ft.Container(
             content=self.track_list.column,
             expand=True,
