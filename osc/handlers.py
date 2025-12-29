@@ -103,6 +103,7 @@ class OSCHandlers:
                     end=0,
                     track_number=track_number,
                     start_locator_id=loc.original_id
+                    # bpm se detectará después en _scan_track_tempos()
                 )
                 log_debug(f"Track #{track_number}: '{title}' @ beat {loc.beat}", module="OSC")
             

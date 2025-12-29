@@ -187,10 +187,19 @@ class ControlPanel:
             
             if playback.play_track(current_idx):
                 track = state.tracks[current_idx]
+                
+                # 🆕 ACTUALIZAR DISPLAY DE TEMPO si el track tiene BPM
+                if track.bpm is not None and track.bpm > 0:
+                    self.tempo_display.update(
+                        tempo=track.bpm,
+                        page_update_fn=self.page.update
+                    )
+                
                 StatusBar.instance.text.value = i18n.get("status_play", track.title)
                 StatusBar.instance.text.color = self.theme.get("button_play")
                 self.page.update()
-                await TrackListView.instance.update()
+                # Solo actualizar el track actual, no toda la lista
+                await TrackListView.instance.update_single_track(current_idx)
             else:
                 StatusBar.instance.text.value = i18n.get("status_play_error")
                 StatusBar.instance.text.color = self.theme.get("button_stop")
@@ -212,9 +221,13 @@ class ControlPanel:
             if not self._check_nav_debounce():
                 return
             
+            previous_idx = state.current_index
             if playback.next_track():
                 await asyncio.sleep(0.12)
-                await TrackListView.instance.update()
+                # Actualizar solo los tracks afectados
+                if previous_idx >= 0:
+                    await TrackListView.instance.update_single_track(previous_idx)
+                await TrackListView.instance.update_single_track(state.current_index)
                 
                 track = state.get_current_track()
                 if track:
@@ -233,9 +246,13 @@ class ControlPanel:
             if not self._check_nav_debounce():
                 return
             
+            previous_idx = state.current_index
             if playback.prev_track():
                 await asyncio.sleep(0.12)
-                await TrackListView.instance.update()
+                # Actualizar solo los tracks afectados
+                if previous_idx >= 0:
+                    await TrackListView.instance.update_single_track(previous_idx)
+                await TrackListView.instance.update_single_track(state.current_index)
                 
                 track = state.get_current_track()
                 if track:

@@ -322,6 +322,18 @@ class TrackListView:
                 self._clear_list()
                 return
             
+            # Verificar si realmente necesitamos actualizar
+            current_count = len(self.column.controls)
+            new_count = len(tracks)
+            
+            # Si el número de tracks no cambió, usar update_single_track en su lugar
+            if current_count == new_count and current_count > 0:
+                print(f"[UI] Número de tracks sin cambios ({current_count}), usando update selectivo")
+                # Solo actualizar el track actual si existe
+                if 0 <= state.current_index < new_count:
+                    await self.update_single_track(state.current_index)
+                return
+            
             new_items = self._build_all_items(tracks)
             
             if not new_items:
@@ -410,25 +422,33 @@ class TrackListView:
         return items
     
     def _replace_items(self, new_items: list, track_count: int):
-        """Reemplaza los items de la lista"""
+        """Reemplaza los items de la lista de forma segura"""
         try:
-            # CRÍTICO: Limpiar ANTES para forzar recreación completa
             old_count = len(self.column.controls)
-            self.column.controls.clear()
             
-            # Si había items, forzar eliminación antes de añadir nuevos
+            # CRÍTICO: Verificar si realmente cambió algo
+            if old_count == track_count:
+                print(f"[UI] ⚠ Advertencia: Intentando reemplazar {old_count} items con {track_count} items (mismo número)")
+                # No hacer nada si es el mismo número - evita duplicaciones
+                return
+            
+            # Limpiar completamente la lista ANTES de añadir nuevos items
             if old_count > 0:
+                print(f"[UI] Limpiando {old_count} items existentes...")
+                # Método 1: Limpiar la lista
+                self.column.controls.clear()
+                # Forzar actualización para que Flet procese la eliminación
                 self.page.update()
-                # Pequeña pausa para asegurar que Flet procesa la eliminación
-                import time
-                time.sleep(0.01)
             
             # Ahora asignar los nuevos items
+            print(f"[UI] Añadiendo {track_count} nuevos items...")
             self.column.controls = new_items
             self.page.update()
             print(f"[UI] ✓ Lista actualizada: {track_count} tracks (anterior: {old_count})")
         except Exception as e:
-            print(f"[UI] Error en page.update: {e}")
+            print(f"[UI] Error en _replace_items: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     async def _rebuild_from_scratch(self, tracks):

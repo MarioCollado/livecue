@@ -66,12 +66,49 @@ class PlaybackController:
                 time.sleep(0.05)
                 
                 self._last_scan_time = current_time
+                
+                # 5. 🆕 DETECTAR TEMPO DE CADA TRACK
+                log_debug("Detectando tempo de cada track...", module="Playback")
+                self._scan_track_tempos()
+                
                 log_info("✓ Scan completado correctamente", module="Playback")
                 return True
                 
             except Exception as e:
                 log_error(f"Error en scan", module="Playback", exc=e)
                 return False
+    
+    def _scan_track_tempos(self):
+        """
+        Detecta el tempo de cada track saltando a su locator inicial.
+        IMPORTANTE: Solo funciona si Ableton tiene automation de tempo.
+        """
+        from core.state import state
+        
+        if not state.tracks:
+            return
+        
+        log_debug(f"Escaneando tempo de {len(state.tracks)} tracks...", module="Playback")
+        
+        for track in state.tracks:
+            if track.start_locator_id is None:
+                continue
+            
+            try:
+                # Saltar al locator del track
+                send_message("/live/song/cue_point/jump", [track.start_locator_id])
+                time.sleep(0.2)  # Esperar a que Ableton salte
+                
+                # Pedir el tempo en ese punto
+                send_message("/live/song/get/tempo", [])
+                time.sleep(0.15)  # Esperar respuesta
+                
+                # El tempo se actualizará en state.current_tempo vía OSC
+                track.bpm = state.current_tempo
+                log_debug(f"Track '{track.title}': {track.bpm:.1f} BPM", module="Playback")
+                
+            except Exception as e:
+                log_error(f"Error detectando tempo de '{track.title}'", module="Playback", exc=e)
     
     def play_track(self, track_index: int) -> bool:
         """Reproduce un track específico - Thread-safe"""

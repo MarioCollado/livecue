@@ -39,6 +39,7 @@ class Track:
     end: float
     track_number: int
     start_locator_id: Optional[int] = None
+    bpm: Optional[float] = None  # BPM del track (guardado al escanear)
     sections: List[Section] = field(default_factory=list)
     expanded: bool = False
     
