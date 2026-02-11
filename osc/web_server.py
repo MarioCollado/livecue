@@ -192,13 +192,142 @@ class WebControllerServer:
 
     def start(self):
         def get_wifi_ip():
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            """Obtiene la IP local (funciona sin Internet)"""
+            import re
+            
+            def is_valid_ip(ip):
+                """Filtra IPs inválidas"""
+                if not ip or ip.startswith("127."):
+                    return False
+                if ip.startswith("169.254."):
+                    return False
+                if ip.startswith("172.17.") or ip.startswith("172.18."):
+                    return False
+                return True
+            
+            def is_virtual_adapter(adapter_name):
+                """Detecta si es un adaptador virtual"""
+                if not adapter_name:
+                    return False
+                adapter_lower = adapter_name.lower()
+                virtual_keywords = [
+                    'virtualbox', 'vmware', 'vbox', 'vethernet',
+                    'hyper-v', 'docker', 'wsl', 'loopback'
+                ]
+                return any(keyword in adapter_lower for keyword in virtual_keywords)
+            
+            def prioritize_ip(ip):
+                """Asigna prioridad a las IPs (menor = mejor)"""
+                if ip.startswith("100."):
+                    return 0
+                if ip.startswith("192.168.") or ip.startswith("10."):
+                    # Evitar rangos de VirtualBox (192.168.56.x, 192.168.99.x)
+                    parts = ip.split(".")
+                    if len(parts) >= 3:
+                        third_octet = int(parts[2])
+                        if third_octet in [56, 99]:  # VirtualBox común
+                            return 10  # Baja prioridad
+                    return 1
+                if ip.startswith("172."):
+                    parts = ip.split(".")
+                    if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
+                        return 1
+                return 2
+            
+            # Método 1: netifaces
             try:
+                import netifaces
+                all_ips = []
+                for interface in netifaces.interfaces():
+                    # Filtrar interfaces virtuales por nombre
+                    if is_virtual_adapter(interface):
+                        continue
+                    
+                    addrs = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addrs:
+                        for addr in addrs[netifaces.AF_INET]:
+                            ip = addr.get('addr')
+                            if is_valid_ip(ip):
+                                all_ips.append(ip)
+                
+                if all_ips:
+                    all_ips.sort(key=prioritize_ip)
+                    return all_ips[0]
+            except ImportError:
+                pass
+            except Exception:
+                pass
+            
+            # Método 2: Comandos del sistema
+            try:
+                import platform
+                import subprocess
+                if platform.system() == "Windows":
+                    result = subprocess.run(
+                        ["ipconfig"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+                    if result.returncode == 0:
+                        all_ips = []
+                        current_adapter = None
+                        
+                        for line in result.stdout.split('\n'):
+                            # Detectar nombre del adaptador
+                            if "adaptador" in line.lower() or "adapter" in line.lower():
+                                current_adapter = line.strip()
+                            
+                            # Buscar IPv4
+                            elif "IPv4" in line or "Dirección IPv4" in line:
+                                match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
+                                if match:
+                                    ip = match.group(1)
+                                    # Filtrar si el adaptador es virtual
+                                    if current_adapter and is_virtual_adapter(current_adapter):
+                                        continue
+                                    if is_valid_ip(ip):
+                                        all_ips.append(ip)
+                        
+                        if all_ips:
+                            all_ips.sort(key=prioritize_ip)
+                            return all_ips[0]
+                else:
+                    for cmd in [["ip", "-4", "addr"], ["ifconfig"]]:
+                        try:
+                            result = subprocess.run(
+                                cmd,
+                                capture_output=True,
+                                text=True,
+                                timeout=2
+                            )
+                            if result.returncode == 0:
+                                all_ips = []
+                                for match in re.finditer(r'inet (\d+\.\d+\.\d+\.\d+)', result.stdout):
+                                    ip = match.group(1)
+                                    if is_valid_ip(ip):
+                                        all_ips.append(ip)
+                                
+                                if all_ips:
+                                    all_ips.sort(key=prioritize_ip)
+                                    return all_ips[0]
+                        except (FileNotFoundError, subprocess.TimeoutExpired):
+                            continue
+            except Exception:
+                pass
+            
+            # Método 3: Fallback antiguo
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 s.connect(("8.8.8.8", 80))
                 ip = s.getsockname()[0]
-            finally:
                 s.close()
-            return ip
+                if is_valid_ip(ip):
+                    return ip
+            except Exception:
+                pass
+            
+            return "127.0.0.1"
         
         def get_tailscale_ip():
             """Detecta IP de Tailscale"""

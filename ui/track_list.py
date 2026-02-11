@@ -306,8 +306,12 @@ class TrackListView:
     # UPDATE METHODS
     # ============================================
     
-    async def update(self):
-        """Actualiza la lista completa de tracks"""
+    async def update(self, force_refresh: bool = False):
+        """Actualiza la lista completa de tracks
+        
+        Args:
+            force_refresh: Si True, fuerza actualización completa incluso si el número de tracks no cambió
+        """
         if not self._can_update():
             return
         
@@ -326,13 +330,16 @@ class TrackListView:
             current_count = len(self.column.controls)
             new_count = len(tracks)
             
-            # Si el número de tracks no cambió, usar update_single_track en su lugar
-            if current_count == new_count and current_count > 0:
+            # Si el número de tracks no cambió Y no es forzado, usar update_single_track
+            if current_count == new_count and current_count > 0 and not force_refresh:
                 print(f"[UI] Número de tracks sin cambios ({current_count}), usando update selectivo")
                 # Solo actualizar el track actual si existe
                 if 0 <= state.current_index < new_count:
                     await self.update_single_track(state.current_index)
                 return
+            
+            if force_refresh:
+                print(f"[UI] Forzando actualización completa de {new_count} tracks")
             
             new_items = self._build_all_items(tracks)
             
@@ -340,7 +347,7 @@ class TrackListView:
                 print("[UI] No se pudieron crear items")
                 return
             
-            self._replace_items(new_items, len(tracks))
+            self._replace_items(new_items, len(tracks), force=force_refresh)
             
         except AssertionError as e:
             print(f"[UI] AssertionError en update: {e}")
@@ -421,13 +428,19 @@ class TrackListView:
                 print(f"[UI] Error creando item {idx}: {e}")
         return items
     
-    def _replace_items(self, new_items: list, track_count: int):
-        """Reemplaza los items de la lista de forma segura"""
+    def _replace_items(self, new_items: list, track_count: int, force: bool = False):
+        """Reemplaza los items de la lista de forma segura
+        
+        Args:
+            new_items: Nuevos items a mostrar
+            track_count: Número de tracks
+            force: Si True, permite reemplazar incluso si el número es el mismo
+        """
         try:
             old_count = len(self.column.controls)
             
             # CRÍTICO: Verificar si realmente cambió algo
-            if old_count == track_count:
+            if old_count == track_count and not force:
                 print(f"[UI] ⚠ Advertencia: Intentando reemplazar {old_count} items con {track_count} items (mismo número)")
                 # No hacer nada si es el mismo número - evita duplicaciones
                 return

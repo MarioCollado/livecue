@@ -117,7 +117,7 @@ class DialogManager:
 
                 state.current_index = 0 if state.tracks else -1
 
-                await TrackListView.instance.update()
+                await TrackListView.instance.update(force_refresh=True)
 
                 total_sections = sum(len(t.sections) for t in state.tracks)
                 StatusBar.instance.text.value = f"● {i18n.get('dialog_load_success', data['name'], len(state.locators), len(state.tracks), total_sections)}"
