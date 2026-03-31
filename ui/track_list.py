@@ -78,7 +78,9 @@ class TrackItemBuilder:
     
     def create_track_header(self, track_index: int, track, is_selected: bool, 
                            has_sections: bool, is_expanded: bool,
-                           on_click: Callable, on_toggle: Callable) -> ft.Container:
+                           on_click: Callable, on_toggle: Callable,
+                           on_toggle_auto_continue: Callable,
+                           on_toggle_loop: Callable) -> ft.Container:
         """Crea el header de un track"""
         return ft.Container(
             content=ft.Column(
@@ -89,6 +91,8 @@ class TrackItemBuilder:
                             self._create_track_number(track_index, is_selected),
                             ft.Container(width=12),
                             self._create_track_info(track, is_selected, has_sections),
+                            self._create_action_buttons(track, on_toggle_auto_continue, on_toggle_loop),
+                            ft.Container(width=8),
                             self._create_expand_button(has_sections, is_expanded, on_toggle),
                             self._create_drag_handle()
                         ],
@@ -139,6 +143,65 @@ class TrackItemBuilder:
                     visible=has_sections
                 )
             ]
+        )
+    
+    def _create_action_buttons(self, track, on_toggle_auto_continue: Callable, on_toggle_loop: Callable) -> ft.Row:
+        auto_color = self.theme.get("button_play") if track.auto_continue else self.theme.get("text_secondary") + "60"
+        loop_active = getattr(track, "loop_track", False)
+
+        # Botón auto-continue: icono simple
+        auto_btn = ft.IconButton(
+            icon=ft.Icons.SKIP_NEXT_ROUNDED,
+            icon_color=auto_color,
+            icon_size=20,
+            tooltip="Auto-continuar a la siguiente pista al terminar",
+            on_click=on_toggle_auto_continue,
+            style=ft.ButtonStyle(
+                shape=ft.CircleBorder(),
+                padding=ft.padding.all(6),
+            )
+        )
+
+        # Botón LOOP
+        EMERGENCY_RED = "#FF3B30"
+        inactive_fg   = self.theme.get("text_secondary") + "70"
+        inactive_border = self.theme.get("text_secondary") + "40"
+
+        loop_btn = ft.Container(
+            content=ft.Row(
+                spacing=4,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    ft.Icon(
+                        ft.Icons.WARNING_AMBER_ROUNDED if loop_active else ft.Icons.REPEAT_ONE_ROUNDED,
+                        size=13,
+                        color="#FFFFFF" if loop_active else inactive_fg,
+                    ),
+                    ft.Text(
+                        "LOOP",
+                        size=10,
+                        weight=ft.FontWeight.BOLD,
+                        color="#FFFFFF" if loop_active else inactive_fg,
+                    ),
+                ],
+            ),
+            padding=ft.padding.symmetric(horizontal=8, vertical=4),
+            border_radius=20,
+            bgcolor=EMERGENCY_RED if loop_active else self.theme.get("bg_secondary"),
+            border=ft.border.all(1.5, EMERGENCY_RED if loop_active else inactive_border),
+            shadow=ft.BoxShadow(
+                blur_radius=10,
+                spread_radius=1,
+                color=EMERGENCY_RED + "99",
+            ) if loop_active else None,
+            tooltip="🚨 EMERGENCIA: Loopear el compás actual hasta desactivar",
+            on_click=on_toggle_loop,
+            ink=True,
+        )
+
+        return ft.Row(
+            spacing=6,
+            controls=[loop_btn, auto_btn],
         )
     
     def _create_expand_button(self, has_sections: bool, is_expanded: bool, 
@@ -373,12 +436,19 @@ class TrackListView:
             draggable = self.column.controls[track_index]
             track_column = draggable.content.content
             
-            # Actualizar header
+            # Actualizar header y forzar render antes de la animacion
             track_column.controls[0] = self.item_builder.create_track_header(
                 track_index, track, is_selected, has_sections, is_expanded,
                 lambda e: self.page.run_task(self._on_track_click, track_index),
-                lambda e: self.page.run_task(self._toggle_expand, track_index)
+                lambda e: self.page.run_task(self._toggle_expand, track_index),
+                lambda e, idx=track_index: self.page.run_task(self._toggle_auto_continue, idx),
+                lambda e, idx=track_index: self.page.run_task(self._toggle_loop, idx)
             )
+            # Refrescar solo el header sin esperar a la animacion de secciones
+            try:
+                self.page.update()
+            except Exception:
+                pass
             
             # Actualizar secciones con animación
             await self._animate_sections(track_column.controls[1], track_index, 
@@ -549,7 +619,9 @@ class TrackListView:
         header = self.item_builder.create_track_header(
             track_index, track, is_selected, has_sections, is_expanded,
             lambda e: self.page.run_task(self._on_track_click, track_index),
-            lambda e: self.page.run_task(self._toggle_expand, track_index)
+            lambda e: self.page.run_task(self._toggle_expand, track_index),
+            lambda e, idx=track_index: self.page.run_task(self._toggle_auto_continue, idx),
+            lambda e, idx=track_index: self.page.run_task(self._toggle_loop, idx)
         )
         
         # Secciones con animaciones modernas
@@ -620,24 +692,52 @@ class TrackListView:
             await self.update_single_track(previous_index)
         await self.update_single_track(track_index)
     
+    async def _toggle_auto_continue(self, track_index: int):
+        """Toggle auto-continuar"""
+        tracks_list = state.tracks
+        if not (0 <= track_index < len(tracks_list)): return
+        tracks_list[track_index].auto_continue = not getattr(tracks_list[track_index], 'auto_continue', False)
+        state.tracks = tracks_list
+        await self.update_single_track(track_index)
+
+    async def _toggle_loop(self, track_index: int):
+        """Toggle loop"""
+        tracks_list = state.tracks
+        if not (0 <= track_index < len(tracks_list)): return
+        tracks_list[track_index].loop_track = not getattr(tracks_list[track_index], 'loop_track', False)
+        state.tracks = tracks_list
+        await self.update_single_track(track_index)
+
     async def _toggle_expand(self, track_index: int):
-        """Toggle de expansión de secciones con animación fluida"""
+        """Toggle de expansión/colapso de secciones con animación fluida"""
         if not (0 <= track_index < len(state.tracks)):
             return
         
-        track = state.tracks[track_index]
+        tracks_list = state.tracks
+        track = tracks_list[track_index]
+        currently_expanded = track.expanded
         
-        # Seleccionar visualmente primero (mostrar borde)
-        track.expanded = False
+        # Seleccionar el track si no estaba seleccionado
         state.current_index = track_index
-        await self.update_single_track(track_index)
         
-        # Micro-delay para percepción de selección (más responsivo)
-        await asyncio.sleep(0.01)  # 10ms - casi imperceptible pero suficiente
-        
-        # Expandir con animación suave
-        track.expanded = True
-        await self.update_single_track(track_index)
+        if currently_expanded:
+            # --- COLAPSAR ---
+            track.expanded = False
+            state.tracks = tracks_list
+            await self.update_single_track(track_index)
+        else:
+            # --- EXPANDIR ---
+            # Micro-delay para percepción de selección
+            track.expanded = False  # Asegurar estado inicial para la animación
+            state.tracks = tracks_list
+            await self.update_single_track(track_index)
+            
+            await asyncio.sleep(0.01)  # 10ms - casi imperceptible pero suficiente
+            
+            tracks_list = state.tracks  # Refrescar referencia
+            tracks_list[track_index].expanded = True
+            state.tracks = tracks_list
+            await self.update_single_track(track_index)
     
     async def _on_section_click(self, track_index: int, section_index: int):
         """Maneja el click en una sección"""

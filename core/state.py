@@ -17,7 +17,25 @@ class Locator:
     
     @property
     def is_click_toggle(self) -> bool:
-        return self.name.upper() in ["CLICK ON", "CLICK OFF"]
+        n = self.name.upper().replace("_", " ")
+        return n in ["CLICK ON", "CLICK OFF"]
+    
+    @property
+    def is_click_on(self) -> bool:
+        n = self.name.upper().replace("_", " ")
+        return n == "CLICK ON"
+    
+    @property
+    def is_click_off(self) -> bool:
+        n = self.name.upper().replace("_", " ")
+        return n == "CLICK OFF"
+
+
+@dataclass
+class ClickEvent:
+    """Evento de automatización del click/metrónomo"""
+    beat: float
+    enable: bool  # True = CLICK ON, False = CLICK OFF
 
 @dataclass
 class Section:
@@ -42,6 +60,8 @@ class Track:
     bpm: Optional[float] = None  # BPM del track (guardado al escanear)
     sections: List[Section] = field(default_factory=list)
     expanded: bool = False
+    auto_continue: bool = False  # Auto-continuar a la siguiente pista al terminar
+    loop_track: bool = False     # Bucle para directo (Opcional)
     
     def contains_beat(self, beat: float) -> bool:
         """Verifica si un beat está dentro del rango del track"""
@@ -76,6 +96,7 @@ class AppState:
         # Datos de Ableton
         self._locators: List[Locator] = []
         self._tracks: List[Track] = []
+        self._click_events: List['ClickEvent'] = []  # Automatización de click por locator
         
         # Estado de reproducción
         self._current_index: int = -1
@@ -238,6 +259,18 @@ class AppState:
         with self._lock:
             # No loguear (demasiado frecuente)
             self._last_triggered_beat = value
+
+    @property
+    def click_events(self) -> list:
+        """Lista de ClickEvents (CLICK ON/OFF) ordenada por beat"""
+        with self._lock:
+            return list(self._click_events)
+
+    @click_events.setter
+    def click_events(self, value: list):
+        with self._lock:
+            self._click_events = sorted(value, key=lambda e: e.beat)
+            log_debug(f"click_events actualizados: {len(self._click_events)} eventos", module="Main")
     
     # ===== MÉTODOS THREAD-SAFE =====
     
@@ -279,6 +312,7 @@ class AppState:
             
             self._locators.clear()
             self._tracks.clear()
+            self._click_events.clear()
             self._current_index = -1
             self._last_triggered_beat = None
             self._is_playing = False

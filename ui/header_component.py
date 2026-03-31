@@ -30,6 +30,8 @@ def get_local_ip():
             return False
         if ip.startswith("172.17.") or ip.startswith("172.18."):  # Docker común
             return False
+        if ip.startswith("100."):  # Tailscale
+            return False
         return True
     
     def is_virtual_adapter(adapter_name):
@@ -45,8 +47,6 @@ def get_local_ip():
     
     def prioritize_ip(ip):
         """Asigna prioridad a las IPs (menor = mejor)"""
-        if ip.startswith("100."):  # Tailscale
-            return 0
         if ip.startswith("192.168.") or ip.startswith("10."):  # Redes privadas comunes
             # Evitar rangos de VirtualBox (192.168.56.x, 192.168.99.x)
             parts = ip.split(".")
@@ -300,13 +300,6 @@ def create_header(
     """
     local_ip = get_local_ip()
     tailscale_ip = get_tailscale_ip()
-    primary_ip = tailscale_ip if tailscale_ip else local_ip
-    primary_color = get_color("button_play") if tailscale_ip else get_color("accent")
-
-    tooltip_lines = [f"Local WiFi: {local_ip}:{web_port}"]
-    if tailscale_ip: tooltip_lines.append(f"Tailscale: {tailscale_ip}:{web_port}")
-    tooltip_lines.append(f"OSC: {local_ip}:11001")
-    tooltip_text = "\n".join(tooltip_lines)
 
     if set_timer is None:
         set_timer = SetTimer()
@@ -464,26 +457,51 @@ def create_header(
                 padding=2,
                 border_radius=10,
                 bgcolor=get_color("bg_card") + "30",
+            )
+        ]
+    )
+    
+    # Indicadores de red
+    network_indicators = [
+        ft.Container(
+            content=ft.Row(
+                spacing=4,
+                controls=[
+                    icon("network", size=14, color=get_color("accent")),
+                    ft.Text("WLAN:", size=9, weight=ft.FontWeight.BOLD, color=get_color("accent")),
+                    ft.Text(f"{local_ip}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
+                ],
             ),
+            padding=ft.padding.symmetric(horizontal=8, vertical=3),
+            border_radius=10,
+            bgcolor=get_color("bg_card") + "20",
+            border=ft.border.all(1, get_color("accent") + "30"),
+            tooltip=f"Local WiFi: {local_ip}:{web_port}\nOSC: {local_ip}:11001",
+        )
+    ]
+    
+    if tailscale_ip and tailscale_ip != local_ip:
+        network_indicators.append(
             ft.Container(
                 content=ft.Row(
-                    spacing=5,
+                    spacing=4,
                     controls=[
-                        icon("network", size=15, color=primary_color),
-                        ft.Text(
-                            f"{primary_ip}",
-                            size=11,
-                            weight=ft.FontWeight.W_600,
-                            color=get_color("text_primary"),
-                        ),
+                        icon("network", size=14, color=get_color("button_play")),
+                        ft.Text("VPN:", size=9, weight=ft.FontWeight.BOLD, color=get_color("button_play")),
+                        ft.Text(f"{tailscale_ip}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
                     ],
                 ),
                 padding=ft.padding.symmetric(horizontal=8, vertical=3),
                 border_radius=10,
                 bgcolor=get_color("bg_card") + "20",
-                border=ft.border.all(1, primary_color + "20"),
-                tooltip=tooltip_text,
-            ),
+                border=ft.border.all(1, get_color("button_play") + "30"),
+                tooltip=f"Tailscale VPN: {tailscale_ip}:{web_port}",
+            )
+        )
+
+    right_controls.controls.extend(network_indicators)
+    
+    right_controls.controls.extend([
             ft.Container(
                 content=ft.Text(
                     f"v{APP_VERSION}",
@@ -496,8 +514,7 @@ def create_header(
                 bgcolor=get_color("bg_main") + "16",
             ),
             about_btn,
-        ],
-    )
+        ])
 
     # Estructura principal
     return ft.Container(

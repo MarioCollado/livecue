@@ -203,6 +203,8 @@ class WebControllerServer:
                     return False
                 if ip.startswith("172.17.") or ip.startswith("172.18."):
                     return False
+                if ip.startswith("100."):  # Tailscale
+                    return False
                 return True
             
             def is_virtual_adapter(adapter_name):
@@ -218,8 +220,6 @@ class WebControllerServer:
             
             def prioritize_ip(ip):
                 """Asigna prioridad a las IPs (menor = mejor)"""
-                if ip.startswith("100."):
-                    return 0
                 if ip.startswith("192.168.") or ip.startswith("10."):
                     # Evitar rangos de VirtualBox (192.168.56.x, 192.168.99.x)
                     parts = ip.split(".")

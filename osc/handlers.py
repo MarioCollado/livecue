@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
-from core.state import state, Locator, Track, Section
+from core.state import state, Locator, Track, Section, ClickEvent
 from osc.client import send_message
 from core.logger import log_info, log_error, log_warning, log_debug
 import threading
@@ -19,6 +19,8 @@ class OSCHandlers:
         self._processing_clips = False
         self._clip_timestamps: Dict[str, float] = {}  # Timestamps para clips
         self._clip_timeout = 1.0  # Timeout de 1 segundo
+        self._last_end_processed_idx = -1  # Para evitar loops infinitos al finalizar track
+        self._triggered_click_beats: set = set()  # Beats de click ya disparados en esta sesión
         log_debug("OSCHandlers inicializado", module="OSC")
     
     def handle_cue_points(self, address, *args):
@@ -72,30 +74,33 @@ class OSCHandlers:
                 self._processing_cue_points = False
     
     def _build_track_structure(self, locators: List[Locator]):
-        """Construye estructura de tracks - Debe llamarse con lock"""
+        """Construye estructura de tracks y eventos de click automation en un solo paso"""
         log_debug("Construyendo estructura de tracks...", module="OSC")
-        
+
         new_tracks = []
+        click_events = []
         current_track = None
         track_number = 0
-        
+
         for loc in locators:
-            name_upper = loc.name.upper()
-            
-            if name_upper.startswith("START TRACK"):
-                # Cerrar track anterior
+            # Normalizar: mayúsculas + sustituir guión bajo por espacio
+            # Así "CLICK_OFF" y "CLICK OFF" son equivalentes
+            name_norm = loc.name.upper().replace("_", " ").strip()
+
+            if name_norm.startswith("START TRACK"):
+                # Cerrar track anterior si quedó abierto
                 if current_track:
                     log_warning(f"Track '{current_track.title}' sin END TRACK", module="OSC")
                     current_track.end = loc.beat
                     new_tracks.append(current_track)
-                
-                # Extraer título
+
+                # Extraer título entre comillas
                 title = "Untitled"
                 if '"' in loc.name:
                     parts = loc.name.split('"')
                     if len(parts) >= 2:
                         title = parts[1].strip()
-                
+
                 track_number += 1
                 current_track = Track(
                     title=title,
@@ -106,31 +111,55 @@ class OSCHandlers:
                     # bpm se detectará después en _scan_track_tempos()
                 )
                 log_debug(f"Track #{track_number}: '{title}' @ beat {loc.beat}", module="OSC")
-            
-            elif name_upper.startswith("END TRACK"):
+
+            elif name_norm.startswith("END TRACK"):
                 if current_track:
                     current_track.end = loc.beat
                     new_tracks.append(current_track)
-                    log_debug(f"✓ Track completado: '{current_track.title}' ({current_track.end - current_track.start} beats)", module="OSC")
+                    log_debug(
+                        f"✓ Track completado: '{current_track.title}' "
+                        f"({current_track.end - current_track.start} beats)",
+                        module="OSC"
+                    )
                     current_track = None
-            
-            elif current_track and not loc.is_click_toggle:
-                # Agregar como sección
+
+            elif name_norm in ("CLICK ON", "CLICK OFF"):
+                # Evento de automatización del metrónomo — funciona dentro O fuera de tracks
+                enable = (name_norm == "CLICK ON")
+                click_events.append(ClickEvent(beat=loc.beat, enable=enable))
+                log_debug(
+                    f"🎵 Click automation: {'ON' if enable else 'OFF'} @ beat {loc.beat}",
+                    module="OSC"
+                )
+
+            elif current_track:
+                # Cualquier otro locator dentro de un track = sección
                 section = Section(name=loc.name.title(), beat=loc.beat)
                 current_track.add_section(section)
-                log_debug(f"Sección agregada: '{section.name}' a '{current_track.title}'", module="OSC")
-        
-        # Cerrar último track
+                log_debug(f"Sección: '{section.name}' → '{current_track.title}'", module="OSC")
+
+        # Cerrar último track si quedó sin END TRACK
         if current_track:
             last_beat = locators[-1].beat if locators else 0
             current_track.end = last_beat
             new_tracks.append(current_track)
-            log_warning(f"Track '{current_track.title}' cerrado automáticamente (sin END TRACK)", module="OSC")
-        
-        # Actualizar state de forma atómica
+            log_warning(
+                f"Track '{current_track.title}' cerrado automáticamente (sin END TRACK)",
+                module="OSC"
+            )
+
+        # Guardar resultados en el estado global
         state.tracks = new_tracks
-        log_info(f"✓ Estructura construida: {len(new_tracks)} tracks detectados", module="OSC")
-        
+        state.click_events = click_events
+
+        log_info(
+            f"✓ Estructura: {len(new_tracks)} tracks | "
+            f"{len(click_events)} eventos de click automation",
+            module="OSC"
+        )
+        for evt in click_events:
+            log_info(f"   🎵 CLICK {'ON' if evt.enable else 'OFF'} @ beat {evt.beat}", module="OSC")
+
         # Ajustar current_index si es necesario
         if state.current_index >= len(new_tracks):
             old_index = state.current_index
@@ -151,15 +180,68 @@ class OSCHandlers:
             return
         
         current_beat = int(args[0])
+        current_exact_beat = float(args[0])
         
         with self._lock:
             # Evitar disparos duplicados
-            if state.last_triggered_beat == current_beat:
-                return
-            state.last_triggered_beat = current_beat
-            state.current_song_time = args[0]
-        
-        # Log solo cada 4 beats para no saturar
+            if state.last_triggered_beat != current_beat:
+                state.last_triggered_beat = current_beat
+            
+            state.current_song_time = current_exact_beat
+            
+            # Lógica de fin de track (Auto-continue / Loop)
+            if state.is_playing:
+                current_track = state.get_current_track()
+                if current_track and current_track.end > 0:
+                    # Detectar con un pequeño margen si pasamos el final
+                    if current_exact_beat >= current_track.end and current_exact_beat < current_track.end + 1.0:
+                        # Asegurarnos de no dispararlo en repetición para el mismo play
+                        if self._last_end_processed_idx != state.current_index:
+                            self._last_end_processed_idx = state.current_index
+                            
+                            from core.playback import playback
+                            
+                            if getattr(current_track, 'loop_track', False):
+                                # LOOP DE EMERGENCIA: salta atrás un compás completo
+                                # (en lugar de reiniciar el track entero)
+                                beats_per_bar = state.time_signature_num  # e.g. 4 en un 4/4
+                                loop_start = max(current_track.start, current_exact_beat - beats_per_bar)
+                                log_info(
+                                    f"🚨 LOOP EMERGENCIA '{current_track.title}': "
+                                    f"saltando a beat {loop_start:.1f} (compás de {beats_per_bar} beats)",
+                                    module="OSC"
+                                )
+                                def do_loop(beat):
+                                    from osc.client import send_message as _send
+                                    import time as _time
+                                    _send("/live/song/set/current_song_time", [beat])
+                                    _time.sleep(0.05)
+                                    _send("/live/song/continue_playing", [])
+                                threading.Thread(target=do_loop, args=(loop_start,), daemon=True).start()
+                                # Resetear para que detecte el próximo fin de compás
+                                self._last_end_processed_idx = -1
+                            elif getattr(current_track, 'auto_continue', False):
+                                log_info(f"⏭ Auto-continue: pasando a la siguiente canción.", module="OSC")
+                                threading.Thread(target=playback.next_track, daemon=True).start()
+                            else:
+                                log_info(f"⏹ Fin de track '{current_track.title}'. Deteniendo.", module="OSC")
+                                threading.Thread(target=playback.stop, daemon=True).start()
+            # ---- AUTOMATIZACIÓN CLICK ON/OFF ----
+            # Comprobar si el beat actual activa algún evento de click
+            if state.is_playing:
+                for evt in state.click_events:
+                    # Ventana de ±0.5 beats para no perdernos el beat exacto
+                    if abs(current_exact_beat - evt.beat) <= 0.5 and evt.beat not in self._triggered_click_beats:
+                        self._triggered_click_beats.add(evt.beat)
+                        target_value = 1 if evt.enable else 0
+                        label = "ON" if evt.enable else "OFF"
+                        log_info(f"🎵 Click automation: CLICK {label} @ beat {evt.beat:.1f}", module="OSC")
+                        def _fire_click(val):
+                            send_message("/live/song/set/metronome", [val])
+                            state.metronome_on = bool(val)
+                        threading.Thread(target=_fire_click, args=(target_value,), daemon=True).start()
+                        self._safe_ui_update('update_metronome_ui')
+
         if current_beat % 4 == 0:
             log_debug(f"Beat: {current_beat}", module="OSC")
         
@@ -173,6 +255,11 @@ class OSCHandlers:
             with self._lock:
                 old_status = state.is_playing
                 state.is_playing = new_status
+                
+                # Resetear marca de procesamiento de final si detenemos o empezamos de nuevo
+                if not new_status or old_status != new_status:
+                    self._last_end_processed_idx = -1
+                    self._triggered_click_beats.clear()  # Permitir re-disparar en el próximo play
             
             # Log solo si cambió
             if old_status != new_status:
