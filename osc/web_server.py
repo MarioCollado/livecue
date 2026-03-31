@@ -190,7 +190,73 @@ class WebControllerServer:
                 log_error("Web: Error en panic stop", module="UI", exc=e)
                 return jsonify({"error": str(e)}), 500
 
+    def _ensure_firewall_rule(self):
+        """Crea regla de Firewall de Windows para permitir conexiones al servidor web"""
+        import platform
+        if platform.system() != "Windows":
+            return
+
+        import subprocess
+        rule_name = f"LiveCue Web Server (TCP {self.port})"
+
+        # Comprobar si la regla ya existe
+        try:
+            check = subprocess.run(
+                ["netsh", "advfirewall", "firewall", "show", "rule", f"name={rule_name}"],
+                capture_output=True, text=True, timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            if check.returncode == 0 and rule_name in check.stdout:
+                log_debug(f"✓ Regla de firewall ya existe: {rule_name}", module="UI")
+                return
+        except Exception:
+            pass
+
+        # Intentar crear la regla con elevación (UAC)
+        log_info(f"🔐 Solicitando permisos para abrir puerto {self.port} en el firewall...", module="UI")
+
+        cmd_args = (
+            f'advfirewall firewall add rule name="{rule_name}" '
+            f'dir=in action=allow protocol=TCP localport={self.port} '
+            f'profile=private,public '
+            f'description="LiveCue - Control remoto desde movil/tablet"'
+        )
+
+        try:
+            import ctypes
+            # ShellExecuteW con 'runas' lanza el prompt UAC de Windows
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,           # hwnd
+                "runas",        # verb — solicitar elevación
+                "netsh",        # programa
+                cmd_args,       # argumentos
+                None,           # directorio
+                0               # SW_HIDE — no mostrar ventana de cmd
+            )
+            # Valores > 32 = éxito
+            if ret > 32:
+                import time
+                time.sleep(1)  # Esperar a que se aplique la regla
+                log_info(f"🔓 Regla de firewall creada correctamente: {rule_name}", module="UI")
+            else:
+                log_warning(
+                    f"⚠️  No se pudo crear la regla de firewall (código: {ret}).\n"
+                    f"    Para conectar desde el móvil, ejecuta manualmente como administrador:\n"
+                    f"    netsh {cmd_args}",
+                    module="UI"
+                )
+        except Exception as e:
+            log_warning(
+                f"⚠️  Error configurando firewall: {e}\n"
+                f"    Para conectar desde el móvil, abre el puerto {self.port} manualmente\n"
+                f"    en el Firewall de Windows (Configuración > Firewall > Reglas de entrada).",
+                module="UI"
+            )
+
     def start(self):
+        # Intentar abrir el puerto en el firewall de Windows
+        self._ensure_firewall_rule()
+
         def get_wifi_ip():
             """Obtiene la IP local (funciona sin Internet)"""
             import re
