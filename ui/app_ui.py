@@ -1,6 +1,6 @@
 # ============================================================================
 # LiveCue - Ableton Setlist Controller
-# Copyright (c) 2025 Mario Collado Rodríguez. Todos los derechos reservados.
+# Copyright (c) 2026 Mario Collado Rodríguez. Todos los derechos reservados.
 # 
 # Este software está licenciado bajo CC BY-NC-SA 4.0
 # NO se permite uso comercial sin autorización explícita por escrito.

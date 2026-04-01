@@ -2,7 +2,7 @@
 
 ## LiveCue - Ableton Setlist Controller
 
-**Copyright © 2025 Mario Collado Rodríguez. Todos los derechos reservados.**
+**Copyright © 2026 Mario Collado Rodríguez. Todos los derechos reservados.**
 
 ---
 
@@ -79,7 +79,7 @@ Este software está protegido bajo **Creative Commons Attribution-NonCommercial-
 ### Atribución Mínima
 ```
 LiveCue - Ableton Setlist Controller
-Copyright (c) 2025 Mario Collado Rodríguez
+Copyright (c) 2026 Mario Collado Rodríguez
 Licensed under CC BY-NC-SA 4.0
 https://github.com/MarioCollado/LiveCue
 ```
@@ -255,4 +255,4 @@ Si encuentras valor en LiveCue:
 
 **Última actualización**: Noviembre 2025
 
-**Copyright © 2025 Mario Collado Rodríguez. Todos los derechos reservados.**
+**Copyright © 2026 Mario Collado Rodríguez. Todos los derechos reservados.**

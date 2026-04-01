@@ -1,5 +1,5 @@
 # ui/about_dialog.py
-# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 
 import flet as ft
 from version_info import APP_VERSION
@@ -169,7 +169,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
         i18n.get("about_dev_title"),
         [
             _info_row(i18n.get("about_author"), "Mario Collado Rodríguez"),
-            _info_row(i18n.get("about_copyright"), "© 2025"),
+            _info_row(i18n.get("about_copyright"), "© 2026"),
             _info_row("GitHub", "github.com/MarioCollado/LiveCue", True, "https://github.com/MarioCollado/LiveCue"),
             _info_row("Email", "mcolladorguez@gmail.com", True, "mailto:mcolladorguez@gmail.com")
         ]

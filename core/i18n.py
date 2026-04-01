@@ -1,5 +1,5 @@
 # core/i18n.py
-# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 
 import locale
 import sys

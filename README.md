@@ -229,7 +229,7 @@ El `.exe` se generará en `dist/main.exe`
 
 Este proyecto está licenciado bajo **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
 
-**Copyright © 2025 Mario Collado Rodríguez. Todos los derechos reservados.**
+**Copyright © 2026 Mario Collado Rodríguez. Todos los derechos reservados.**
 
 ### ✅ Puedes:
 - Usar el software para fines personales y educativos

@@ -1,5 +1,5 @@
 # ui/templates/controller_ui.py
-# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
 CONTROLLER_HTML = """
@@ -66,23 +66,24 @@ CONTROLLER_HTML = """
 
     /* CONTROLES STICKY */
     .controls-row {
-      display: flex;
-      gap: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
       width: 100%;
-      max-width: 500px;
+      max-width: 600px;
       margin: 0 auto;
-      justify-content: center;
     }
 
     .control-btn {
-      flex: 1;
+      width: 100%;
+      box-sizing: border-box;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
       color: white;
-      font-size: 1em;
+      font-size: 1.1em;
       font-weight: 700;
-      padding: 14px 8px;
+      padding: 22px 10px;
       cursor: pointer;
       box-shadow: 0 3px 10px rgba(0,0,0,0.3);
       transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
@@ -123,19 +124,19 @@ CONTROLLER_HTML = """
     }
 
     #metro-btn.active {
-      background: linear-gradient(135deg, #d4af37, #b8952a);
-      border-color: rgba(212, 175, 55, 0.5);
+      background: linear-gradient(135deg, #22c55e, #15803d);
+      border-color: rgba(34, 197, 94, 0.5);
       animation: pulse 1.5s ease-in-out infinite;
     }
 
     #metro-btn.active:hover {
-      background: linear-gradient(135deg, #dbb943, #c29f2f);
-      box-shadow: 0 0 12px rgba(212, 175, 55, 0.7);
+      background: linear-gradient(135deg, #16a34a, #166534);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
     }
 
     @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 8px rgba(212, 175, 55, 0.4); }
-      50% { box-shadow: 0 0 16px rgba(212, 175, 55, 0.8); }
+      0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
+      50% { box-shadow: 0 0 16px rgba(34, 197, 94, 0.8); }
     }
 
     /* CONTENEDOR DE TRACKS CON SCROLL */
@@ -246,8 +247,8 @@ CONTROLLER_HTML = """
       }
 
       .control-btn {
-        font-size: 0.9em;
-        padding: 35px 6px;
+        font-size: 1.05em;
+        padding: 40px 8px;
         min-width: 100px;
       }
 
@@ -285,13 +286,13 @@ CONTROLLER_HTML = """
       }
 
       .controls-row {
-        gap: 14px;
-        max-width: 600px;
+        gap: 16px;
+        max-width: 650px;
       }
 
       .control-btn {
-        font-size: 1.2em;
-        padding: 16px 12px;
+        font-size: 1.25em;
+        padding: 24px 16px;
         min-width: 140px;
       }
 
@@ -375,7 +376,13 @@ CONTROLLER_HTML = """
         ⏹ STOP
       </button>
       <button id="metro-btn" class="control-btn">
-        🎵 CLICK OFF
+        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 5px;">
+          <path d="M5 21h14"/>
+          <path d="m8 21 3-16a1 1 0 0 1 2 0l3 16"/>
+          <path d="m12 6 3 9"/>
+          <circle cx="15" cy="15" r="1.5" fill="currentColor"/>
+        </svg>
+        <span>CLICK OFF</span>
       </button>
     </div>
   </div>
@@ -431,12 +438,20 @@ CONTROLLER_HTML = """
 
     // Actualizar visual del botón
     function updateMetronomeButton() {
+      const svgIcon = `
+        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 5px;">
+          <path d="M5 21h14"/>
+          <path d="m8 21 3-16a1 1 0 0 1 2 0l3 16"/>
+          <path d="m12 6 3 9"/>
+          <circle cx="15" cy="15" r="1.5" fill="currentColor"/>
+        </svg>
+      `;
       if (metronomeOn) {
         metroBtn.classList.add('active');
-        metroBtn.innerHTML = '🎵 CLICK ON';
+        metroBtn.innerHTML = svgIcon + '<span>CLICK ON</span>';
       } else {
         metroBtn.classList.remove('active');
-        metroBtn.innerHTML = '🎵 CLICK OFF';
+        metroBtn.innerHTML = svgIcon + '<span>CLICK OFF</span>';
       }
     }
 

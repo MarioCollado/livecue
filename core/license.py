@@ -1,5 +1,5 @@
 # core/license.py
-# Copyright (c) 2025 Mario Collado Rodríguez - CC BY-NC-SA 4.0
+# Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 
 import sys
 import os
@@ -107,7 +107,7 @@ class LicenseManager:
     
     def _validate_key(self, key: str) -> bool:
         # Dev override
-        if key == "LIVECUE-DEV-UNLIMITED-2025":
+        if key == "LIVECUE-DEV-UNLIMITED-2026":
             return True
             
         # Basic format check for now
