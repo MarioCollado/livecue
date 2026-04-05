@@ -363,12 +363,69 @@ CONTROLLER_HTML = """
       }
     }
 
+    /* SPECTATOR MODE CSS */
+    .header-top {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .header-top h1 {
+      margin: 0;
+    }
+    #spectator-toggle {
+      position: absolute;
+      right: 0;
+      background: none;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      padding: 5px;
+      transition: color 0.3s;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+    }
+    #spectator-toggle.active {
+      color: #38bdf8;
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    }
+    body.spectator-mode .controls-row {
+      display: none;
+    }
+    body.spectator-mode .track-btn {
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: none;
+      font-size: 1.2em;
+      color: #cbd5e1;
+    }
+    body.spectator-mode .play-icon {
+      display: none;
+    }
+    @media (max-width: 480px) {
+      body.spectator-mode .track-btn {
+        font-size: 1.05em;
+      }
+    }
   </style>
 </head>
 <body>
   <!-- HEADER STICKY -->
   <div class="header">
-    <h1>Ableton Controller</h1>
+    <div class="header-top">
+      <h1 id="main-title">Ableton Controller</h1>
+      <button id="spectator-toggle" title="Modo Espectador" aria-label="Toggle Spectator Mode">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
     
     <!-- CONTROLES STICKY -->
     <div class="controls-row">
@@ -393,7 +450,7 @@ CONTROLLER_HTML = """
       {% for i, t in tracks %}
         <form action="/play" method="post">
           <input type="hidden" name="index" value="{{ i }}">
-          <button class="track-btn">▶ {{ t.title }}</button>
+          <button class="track-btn"><span class="play-icon">▶ </span>{{ t.title }}</button>
         </form>
       {% endfor %}
     </div>
@@ -403,6 +460,40 @@ CONTROLLER_HTML = """
   <footer>LiveCue Remote by mariocollado</footer>
 
   <script>
+    // MODO ESPECTADOR
+    const spectatorToggle = document.getElementById('spectator-toggle');
+    const mainTitle = document.getElementById('main-title');
+    let isSpectator = localStorage.getItem('spectatorMode') === 'true';
+
+    function applySpectatorMode() {
+      if (isSpectator) {
+        document.body.classList.add('spectator-mode');
+        spectatorToggle.classList.add('active');
+        mainTitle.innerText = 'Setlist Viewer';
+      } else {
+        document.body.classList.remove('spectator-mode');
+        spectatorToggle.classList.remove('active');
+        mainTitle.innerText = 'Ableton Controller';
+      }
+    }
+    
+    applySpectatorMode();
+
+    spectatorToggle.addEventListener('click', () => {
+      isSpectator = !isSpectator;
+      localStorage.setItem('spectatorMode', isSpectator);
+      applySpectatorMode();
+    });
+
+    // Validar formulario en modo espectador por seguridad
+    document.querySelectorAll('form').forEach(form => {
+      form.addEventListener('submit', (e) => {
+        if (isSpectator) {
+          e.preventDefault();
+        }
+      });
+    });
+
     // Estado del metrónomo
     let metronomeOn = false;
 

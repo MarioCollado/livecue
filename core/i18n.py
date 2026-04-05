@@ -49,11 +49,15 @@ TRANSLATIONS = {
         "about_donation_title": "¿Te gusta LiveCue?",
         "about_donation_text": "LiveCue es gratis y siempre lo será. Si te resulta útil, considera hacer una donación.",
         
-        # Header
         "header_save_tooltip": "Guardar Setlist",
         "header_load_tooltip": "Cargar Setlist",
         "header_theme_tooltip": "Tema: {}",
         "header_about_tooltip": "Acerca de LiveCue",
+        "header_qr_tooltip": "Muestra un Código QR para conectar el móvil",
+        
+        # QR Dialog
+        "dialog_qr_title": "Conectar Dispositivo Móvil",
+        "dialog_qr_instructions": "Escanea este código con la cámara de tu móvil o tablet",
         
         # License
         "license_trial_started": "Periodo de prueba iniciado",
@@ -162,11 +166,15 @@ TRANSLATIONS = {
         "about_donation_title": "Do you like LiveCue?",
         "about_donation_text": "LiveCue is free and always will be. If you find it useful, consider making a donation.",
         
-        # Header
         "header_save_tooltip": "Save Setlist",
         "header_load_tooltip": "Load Setlist",
         "header_theme_tooltip": "Theme: {}",
         "header_about_tooltip": "About LiveCue",
+        "header_qr_tooltip": "Show QR Code to connect mobile device",
+        
+        # QR Dialog
+        "dialog_qr_title": "Connect Mobile Device",
+        "dialog_qr_instructions": "Scan this code with your mobile or tablet camera",
         
         # License
         "license_trial_started": "Trial period started",
@@ -275,11 +283,15 @@ TRANSLATIONS = {
         "about_donation_title": "Vous aimez LiveCue ?",
         "about_donation_text": "LiveCue est gratuit et le restera toujours. Si vous le trouvez utile, pensez à faire un don.",
         
-        # Header
         "header_save_tooltip": "Enregistrer Setlist",
         "header_load_tooltip": "Charger Setlist",
         "header_theme_tooltip": "Thème : {}",
         "header_about_tooltip": "À propos de LiveCue",
+        "header_qr_tooltip": "Afficher le code QR pour connecter l'appareil mobile",
+        
+        # QR Dialog
+        "dialog_qr_title": "Connecter l'appareil mobile",
+        "dialog_qr_instructions": "Scannez ce code avec l'appareil photo de votre mobile ou tablette",
         
         # License
         "license_trial_started": "Période d'essai démarrée",
@@ -388,11 +400,15 @@ TRANSLATIONS = {
         "about_donation_title": "Gefällt Ihnen LiveCue?",
         "about_donation_text": "LiveCue ist kostenlos und wird es immer bleiben. Wenn Sie es nützlich finden, erwägen Sie eine Spende.",
         
-        # Header
         "header_save_tooltip": "Setlist speichern",
         "header_load_tooltip": "Setlist laden",
         "header_theme_tooltip": "Thema: {}",
         "header_about_tooltip": "Über LiveCue",
+        "header_qr_tooltip": "QR-Code anzeigen, um Mobilgerät zu verbinden",
+        
+        # QR Dialog
+        "dialog_qr_title": "Mobilgerät verbinden",
+        "dialog_qr_instructions": "Scannen Sie diesen Code mit der Kamera Ihres Handys oder Tablets",
         
         # License
         "license_trial_started": "Testphase gestartet",

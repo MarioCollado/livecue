@@ -6,6 +6,7 @@ import flet as ft
 from version_info import APP_VERSION
 from ui.themes import ThemeManager
 from ui.about_dialog import show_about_dialog
+from ui.qr_dialog import show_qr_dialog
 import socket
 import subprocess
 import re
@@ -470,13 +471,16 @@ def create_header(
                     icon("network", size=14, color=get_color("accent")),
                     ft.Text("WLAN:", size=9, weight=ft.FontWeight.BOLD, color=get_color("accent")),
                     ft.Text(f"{local_ip}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
+                    ft.Icon(ft.Icons.QR_CODE_2_ROUNDED, size=14, color=get_color("accent")),
                 ],
             ),
             padding=ft.padding.symmetric(horizontal=8, vertical=3),
             border_radius=10,
             bgcolor=get_color("bg_card") + "20",
             border=ft.border.all(1, get_color("accent") + "30"),
-            tooltip=f"Local WiFi: {local_ip}:{web_port}\nOSC: {local_ip}:11001",
+            tooltip=i18n.get("header_qr_tooltip") + f"\nOSC: {local_ip}:11001",
+            ink=True,
+            on_click=lambda e: show_qr_dialog(page, get_color, local_ip, web_port),
         )
     ]
     
@@ -489,13 +493,16 @@ def create_header(
                         icon("network", size=14, color=get_color("button_play")),
                         ft.Text("VPN:", size=9, weight=ft.FontWeight.BOLD, color=get_color("button_play")),
                         ft.Text(f"{tailscale_ip}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
+                        ft.Icon(ft.Icons.QR_CODE_2_ROUNDED, size=14, color=get_color("button_play")),
                     ],
                 ),
                 padding=ft.padding.symmetric(horizontal=8, vertical=3),
                 border_radius=10,
                 bgcolor=get_color("bg_card") + "20",
                 border=ft.border.all(1, get_color("button_play") + "30"),
-                tooltip=f"Tailscale VPN: {tailscale_ip}:{web_port}",
+                tooltip=i18n.get("header_qr_tooltip") + f"\nVPN: {tailscale_ip}:{web_port}",
+                ink=True,
+                on_click=lambda e: show_qr_dialog(page, get_color, tailscale_ip, web_port),
             )
         )
 

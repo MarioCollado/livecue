@@ -32,9 +32,13 @@ class DialogManager:
             width=350,
             autofocus=True,
             hint_text=i18n.get("dialog_save_name_hint"),
-            bgcolor=self.theme.get("bg_card"),
+            bgcolor=ft.Colors.TRANSPARENT,
             color=self.theme.get("text_primary"),
+            border=ft.InputBorder.OUTLINE,
+            border_width=1.5,
+            border_radius=8,
             border_color=self.theme.get("accent"),
+            content_padding=16,
         )
         error_text = ft.Text("", size=12, color=ft.Colors.RED_400, visible=False)
 
@@ -81,10 +85,23 @@ class DialogManager:
                 ]
             ),
             actions=[
-                ft.TextButton(i18n.get("cancel"), on_click=lambda e: self.page.run_task(close_dlg, e)),
-                ft.FilledButton(i18n.get("btn_save"), on_click=lambda e: self.page.run_task(do_save, e))
+                ft.TextButton(
+                    i18n.get("cancel"), 
+                    on_click=lambda e: self.page.run_task(close_dlg, e),
+                    style=ft.ButtonStyle(color=self.theme.get("text_secondary"))
+                ),
+                ft.OutlinedButton(
+                    i18n.get("btn_save"), 
+                    on_click=lambda e: self.page.run_task(do_save, e),
+                    style=ft.ButtonStyle(
+                        color=self.theme.get("accent"),
+                        side=ft.BorderSide(1.5, self.theme.get("accent")),
+                        shape=ft.RoundedRectangleBorder(radius=8)
+                    )
+                )
             ],
-            actions_alignment=ft.MainAxisAlignment.END
+            actions_alignment=ft.MainAxisAlignment.END,
+            shape=ft.RoundedRectangleBorder(radius=12),
         )
         self.page.open(dlg)
 
@@ -134,8 +151,12 @@ class DialogManager:
                 label=i18n.get("dialog_load_dropdown_label"),
                 options=[ft.dropdown.Option(name) for name in saved],
                 width=350,
-                bgcolor=self.theme.get("bg_card"),
+                bgcolor=ft.Colors.TRANSPARENT,
+                border=ft.InputBorder.OUTLINE,
+                border_width=1.5,
+                border_radius=8,
                 border_color=self.theme.get("accent"),
+                content_padding=16,
             )
             content = ft.Column(
                 width=400,
@@ -152,8 +173,20 @@ class DialogManager:
                 ]
             )
             actions = [
-                ft.TextButton(i18n.get("cancel"), on_click=lambda e: self.page.run_task(close_dlg, e)),
-                ft.FilledButton(i18n.get("btn_load"), on_click=lambda e: self.page.run_task(do_load, e))
+                ft.TextButton(
+                    i18n.get("cancel"), 
+                    on_click=lambda e: self.page.run_task(close_dlg, e),
+                    style=ft.ButtonStyle(color=self.theme.get("text_secondary"))
+                ),
+                ft.OutlinedButton(
+                    i18n.get("btn_load"), 
+                    on_click=lambda e: self.page.run_task(do_load, e),
+                    style=ft.ButtonStyle(
+                        color=self.theme.get("accent"),
+                        side=ft.BorderSide(1.5, self.theme.get("accent")),
+                        shape=ft.RoundedRectangleBorder(radius=8)
+                    )
+                )
             ]
         else:
             content = ft.Column(
@@ -170,7 +203,17 @@ class DialogManager:
                     )
                 ]
             )
-            actions = [ft.TextButton(i18n.get("close"), on_click=lambda e: self.page.run_task(close_dlg, e))]
+            actions = [
+                ft.OutlinedButton(
+                    i18n.get("close"), 
+                    on_click=lambda e: self.page.run_task(close_dlg, e),
+                    style=ft.ButtonStyle(
+                        color=self.theme.get("text_secondary"),
+                        side=ft.BorderSide(1.5, self.theme.get("text_secondary")),
+                        shape=ft.RoundedRectangleBorder(radius=8)
+                    )
+                )
+            ]
 
         dlg = ft.AlertDialog(
             modal=True,
@@ -178,7 +221,8 @@ class DialogManager:
             bgcolor=self.theme.get("bg_secondary"),
             content=content,
             actions=actions,
-            actions_alignment=ft.MainAxisAlignment.END
+            actions_alignment=ft.MainAxisAlignment.END,
+            shape=ft.RoundedRectangleBorder(radius=12),
         )
         self.page.open(dlg)
 
