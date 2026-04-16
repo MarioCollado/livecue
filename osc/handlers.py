@@ -77,6 +77,19 @@ class OSCHandlers:
         """Construye estructura de tracks y eventos de click automation en un solo paso"""
         log_debug("Construyendo estructura de tracks...", module="OSC")
 
+        # Si hay un setlist cargado manualmente, NO sobreescribir los tracks.
+        # El scan OSC ordena por beat de Ableton y destruiría el orden personalizado.
+        # Solo actualizamos locators (necesarios para los comandos OSC de play/jump).
+        if state.setlist_loaded:
+            log_info(
+                "⚠️ Setlist cargado presente — el scan OSC NO sobreescribe tracks. "
+                "Solo se actualizan locators de referencia.",
+                module="OSC"
+            )
+            # Actualizar locators en estado para que play/jump funcionen vía OSC
+            # pero NO reconstruir state.tracks (preservar orden del usuario)
+            return
+
         new_tracks = []
         click_events = []
         current_track = None
@@ -182,10 +195,14 @@ class OSCHandlers:
         current_beat = int(args[0])
         current_exact_beat = float(args[0])
         
+        # Rastrear si el beat ENTERO cambió — solo entonces pulsamos el beat indicator
+        beat_changed = False
+        
         with self._lock:
-            # Evitar disparos duplicados
+            # Evitar disparos duplicados del pulso visual
             if state.last_triggered_beat != current_beat:
                 state.last_triggered_beat = current_beat
+                beat_changed = True
             
             state.current_song_time = current_exact_beat
             
@@ -242,11 +259,14 @@ class OSCHandlers:
                         threading.Thread(target=_fire_click, args=(target_value,), daemon=True).start()
                         self._safe_ui_update('update_metronome_ui')
 
-        if current_beat % 4 == 0:
+        if beat_changed and current_beat % 4 == 0:
             log_debug(f"Beat: {current_beat}", module="OSC")
         
-        # Actualizar UI (trigger_pulse y progress son thread-safe)
-        self._safe_ui_update('trigger_pulse', current_beat)
+        # Solo actualizar el pulso visual cuando el beat ENTERO cambia
+        # Ableton envía song_time decenas de veces por beat (posiciones decimales)
+        # disparar en cada mensaje causaba el comportamiento glitchy
+        if beat_changed:
+            self._safe_ui_update('trigger_pulse', current_beat)
     
     def handle_playing_status(self, address, *args):
         """Maneja el estado de reproducción"""

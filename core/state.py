@@ -124,6 +124,10 @@ class AppState:
         self.scan_status = ""  # Mensaje de estado
         self.scan_error = None  # Para capturar errores
         
+        # Flag: indica que hay un setlist cargado manualmente
+        # Cuando está en True, el scan OSC NO sobreescribe state.tracks
+        self.setlist_loaded = False
+        
         log_debug("AppState inicializado", module="Main")
 
             

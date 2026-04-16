@@ -515,16 +515,11 @@ class TrackListView:
                 # No hacer nada si es el mismo número - evita duplicaciones
                 return
             
-            # Limpiar completamente la lista ANTES de añadir nuevos items
-            if old_count > 0:
-                print(f"[UI] Limpiando {old_count} items existentes...")
-                # Método 1: Limpiar la lista
-                self.column.controls.clear()
-                # Forzar actualización para que Flet procese la eliminación
-                self.page.update()
+            print(f"[UI] Reemplazando {old_count} → {track_count} items (force={force})...")
             
-            # Ahora asignar los nuevos items
-            print(f"[UI] Añadiendo {track_count} nuevos items...")
+            # Limpiar y asignar en un solo paso para evitar el flash visual
+            # (antes se llamaba page.update() tras el clear, causando un parpadeo)
+            self.column.controls.clear()
             self.column.controls = new_items
             self.page.update()
             print(f"[UI] ✓ Lista actualizada: {track_count} tracks (anterior: {old_count})")
@@ -779,12 +774,16 @@ class TrackListView:
         elif target_idx <= state.current_index < start_idx:
             state.current_index += 1
         
-        # Restaurar opacidad
+        # Restaurar opacidad de todos los drop targets
         self._restore_all_opacity()
         
         self._update_status(i18n.get("status_reordered", moved_track.title), "button_play")
         
-        await self.update()
+        # CRÍTICO: force_refresh=True porque el count de tracks no cambia en un reorder.
+        # Sin force, update() detecta mismo número de tracks y solo actualiza UN track
+        # (update_single_track), dejando la lista visual en el orden ANTIGUO mientras
+        # state.tracks tiene el nuevo orden → crash/corrupción en operaciones siguientes.
+        await self.update(force_refresh=True)
         print(f"[DRAG] ✓ Reordenamiento completado")
     
     def _restore_all_opacity(self):

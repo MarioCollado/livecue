@@ -131,6 +131,10 @@ class DialogManager:
                 state.locators = data["locators"]
                 if "tracks" in data:
                     state.tracks = data["tracks"]
+                    # Marcar que hay un setlist cargado manualmente.
+                    # Esto protege el orden personalizado: el scan OSC no sobreescribirá
+                    # state.tracks aunque reciba cue_points de Ableton.
+                    state.setlist_loaded = True
 
                 state.current_index = 0 if state.tracks else -1
 

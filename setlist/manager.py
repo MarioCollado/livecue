@@ -140,6 +140,9 @@ class SetlistManager:
                 "end": track.end,
                 "track_number": track.track_number,
                 "start_locator_id": track.start_locator_id,
+                "bpm": getattr(track, 'bpm', None),
+                "auto_continue": getattr(track, 'auto_continue', False),
+                "loop_track": getattr(track, 'loop_track', False),
                 "sections": [
                     {
                         "name": sec.name,
@@ -162,6 +165,11 @@ class SetlistManager:
             track_number=data["track_number"],
             start_locator_id=data.get("start_locator_id")
         )
+        
+        # Restaurar campos opcionales (compatibilidad con setlists guardados antes de estos campos)
+        track.bpm = data.get("bpm", None)
+        track.auto_continue = data.get("auto_continue", False)
+        track.loop_track = data.get("loop_track", False)
         
         for sec_data in data.get("sections", []):
             section = Section(

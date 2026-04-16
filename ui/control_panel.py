@@ -317,6 +317,11 @@ class ControlPanel:
     async def _on_scan(self, e):
         """Escanea tracks desde Ableton CON FEEDBACK VISUAL"""
         try:
+            # El usuario pide un scan manual: quiere reconstruir desde Ableton.
+            # Resetear el flag de setlist cargado para que _build_track_structure
+            # reconstruya los tracks desde los cue_points de Ableton sin protección.
+            state.setlist_loaded = False
+
             # PASO 1: Activar modo scanning
             state.is_scanning = True
             self._update_scan_ui(i18n.get("scan_starting"), 0, scanning=True)

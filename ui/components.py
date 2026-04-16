@@ -13,6 +13,8 @@ class BeatIndicator:
     def __init__(self, get_color_fn):
         self.get_color = get_color_fn
         self.last_beat_time = 0
+        self._fade_timer: threading.Timer = None
+        self._fade_lock = threading.Lock()
         
         self.circle_1 = ft.Container(width=30, height=30, border_radius=15,
                                      bgcolor=get_color_fn("text_secondary"), opacity=0.3)
@@ -32,8 +34,13 @@ class BeatIndicator:
         )
     
     def pulse(self, beat: int, time_signature: int, page_update_fn):
+        """
+        Pulsa el indicador visual de beat.
+        Usa threading.Timer cancelable para el fade, así solo corre UN timer
+        a la vez sin acumulación de threads (que era el origen del glitch).
+        """
         current_time = time.time()
-        if current_time - self.last_beat_time < 0.05:
+        if current_time - self.last_beat_time < 0.08:
             return
         self.last_beat_time = current_time
         
@@ -50,8 +57,8 @@ class BeatIndicator:
         if page_update_fn and callable(page_update_fn):
             page_update_fn()
         
+        # Cancelar fade anterior si todavía está pendiente y programar uno nuevo
         def fade():
-            time.sleep(0.15)
             try:
                 active.opacity = 0.3
                 active.bgcolor = self.get_color("text_secondary")
@@ -59,8 +66,13 @@ class BeatIndicator:
                     page_update_fn()
             except:
                 pass
-        
-        threading.Thread(target=fade, daemon=True).start()
+
+        with self._fade_lock:
+            if self._fade_timer is not None:
+                self._fade_timer.cancel()
+            self._fade_timer = threading.Timer(0.18, fade)
+            self._fade_timer.daemon = True
+            self._fade_timer.start()
 
 
 class TempoDisplay:
