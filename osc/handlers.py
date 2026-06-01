@@ -63,7 +63,14 @@ class OSCHandlers:
             with self._lock:
                 state.locators = raw_locators
                 self._build_track_structure(raw_locators)
-            
+                # Limpiar caché de datos antiguos al cargar nuevo track
+                self._clip_data.clear()
+                self._clip_timestamps.clear()
+                self._triggered_click_beats.clear()
+                self._last_end_processed_idx = -1
+
+            log_debug("Limpiados datos de caché al cargar track nuevo", module="OSC")
+
             # Actualizar UI de forma segura
             self._safe_ui_update('update_listbox')
             
@@ -246,16 +253,30 @@ class OSCHandlers:
             # ---- AUTOMATIZACIÓN CLICK ON/OFF ----
             # Comprobar si el beat actual activa algún evento de click
             if state.is_playing:
+                # Calcular ventana de tolerancia dinámicamente basada en tempo
+                if state.current_tempo > 0:
+                    beat_duration_seconds = 60 / state.current_tempo
+                    tolerance_seconds = 0.1  # 100ms ventana independiente del tempo
+                    tolerance_beats = tolerance_seconds / beat_duration_seconds
+                else:
+                    tolerance_beats = 0.3  # Default si tempo no disponible
+
                 for evt in state.click_events:
-                    # Ventana de ±0.5 beats para no perdernos el beat exacto
-                    if abs(current_exact_beat - evt.beat) <= 0.5 and evt.beat not in self._triggered_click_beats:
+                    # Ventana dinámica para evitar capturar eventos no deseados a BPM altos
+                    if abs(current_exact_beat - evt.beat) <= tolerance_beats and evt.beat not in self._triggered_click_beats:
                         self._triggered_click_beats.add(evt.beat)
                         target_value = 1 if evt.enable else 0
                         label = "ON" if evt.enable else "OFF"
-                        log_info(f"🎵 Click automation: CLICK {label} @ beat {evt.beat:.1f}", module="OSC")
+                        log_info(f"🎵 Click automation: CLICK {label} @ beat {evt.beat:.1f} (ventana: ±{tolerance_beats:.2f})", module="OSC")
+
                         def _fire_click(val):
-                            send_message("/live/song/set/metronome", [val])
-                            state.metronome_on = bool(val)
+                            try:
+                                send_message("/live/song/set/metronome", [val])
+                                with state._lock:
+                                    state.metronome_on = bool(val)
+                            except Exception as e:
+                                log_error(f"Click automation failed: {e}", module="OSC", exc=e)
+
                         threading.Thread(target=_fire_click, args=(target_value,), daemon=True).start()
                         self._safe_ui_update('update_metronome_ui')
 

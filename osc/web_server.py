@@ -21,7 +21,7 @@ class PlaybackDebouncer:
         self.delay = delay
         self.last_play_time = 0
         self.lock = threading.Lock()
-    
+
     def can_play(self):
         """Retorna True si ha pasado suficiente tiempo desde el último play"""
         with self.lock:
@@ -31,13 +31,32 @@ class PlaybackDebouncer:
                 return True
             log_debug(f"⏱️  Play throttled (esperando {self.delay}s)", module="UI")
             return False
-    
+
     def reset(self):
         """Resetea el timer (útil después de un stop)"""
         with self.lock:
             self.last_play_time = 0
 
 play_debouncer = PlaybackDebouncer(delay=0.3)
+
+# DEBOUNCER para evitar múltiples toggles del metrónomo rápidamente
+class MetronomeDebouncer:
+    def __init__(self, delay=0.3):
+        self.delay = delay
+        self.last_toggle_time = 0
+        self.lock = threading.Lock()
+
+    def can_toggle(self):
+        """Retorna True si ha pasado suficiente tiempo desde el último toggle"""
+        with self.lock:
+            now = time.time()
+            if now - self.last_toggle_time > self.delay:
+                self.last_toggle_time = now
+                return True
+            log_debug(f"⏱️  Metronome toggle throttled (esperando {self.delay}s)", module="UI")
+            return False
+
+metronome_debouncer = MetronomeDebouncer(delay=0.3)
 
 class WebControllerServer:
     def __init__(self, playback_controller, state, port=5000):
@@ -130,17 +149,26 @@ class WebControllerServer:
             """Toggle metrónomo - Retorna estado nuevo"""
             try:
                 log_info(f"📱 Web: Toggle metrónomo desde {request.remote_addr}", module="UI")
-                
+
+                # DEBOUNCE: Rechazar si es muy rápido
+                if not metronome_debouncer.can_toggle():
+                    log_warning(f"📱 Web: Metrónomo throttled (esperar)", module="UI")
+                    is_on = self.state.metronome_on
+                    return jsonify({"state": is_on})  # Retornar estado actual sin cambios
+
                 def worker():
                     log_debug("Worker: Toggle metrónomo", module="UI")
-                    self.playback.toggle_metronome()
-                    self.state.needs_ui_refresh = True
+                    try:
+                        self.playback.toggle_metronome()
+                        self.state.needs_ui_refresh = True
+                    except Exception as e:
+                        log_error("Worker: Error en toggle metrónomo", module="UI", exc=e)
 
                 threading.Thread(target=worker, daemon=True).start()
-                
+
                 # Esperar un poquito a que se actualice el estado
                 time.sleep(0.05)
-                
+
                 # Retornar estado actual
                 is_on = self.state.metronome_on
                 log_debug(f"Metrónomo: {'ON' if is_on else 'OFF'}", module="UI")

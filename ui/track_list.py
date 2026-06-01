@@ -93,7 +93,7 @@ class TrackItemBuilder:
                             self._create_track_info(track, is_selected, has_sections),
                             self._create_action_buttons(track, on_toggle_auto_continue, on_toggle_loop),
                             ft.Container(width=8),
-                            self._create_expand_button(has_sections, is_expanded, on_toggle),
+                            # self._create_expand_button(has_sections, is_expanded, on_toggle),
                             self._create_drag_handle()
                         ],
                         spacing=0,
@@ -136,12 +136,12 @@ class TrackItemBuilder:
                     weight=ft.FontWeight.W_600 if is_selected else ft.FontWeight.W_500,
                     color=self.theme.get("text_primary")
                 ),
-                ft.Text(
-                    i18n.get("track_sections_count", len(track.sections)),
-                    size=11,
-                    color=self.theme.get("text_secondary"),
-                    visible=has_sections
-                )
+                # ft.Text(
+                #     i18n.get("track_sections_count", len(track.sections)),
+                #     size=11,
+                #     color=self.theme.get("text_secondary"),
+                #     visible=has_sections
+                # )
             ]
         )
     
@@ -628,6 +628,7 @@ class TrackListView:
             animate_size=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
             opacity=1.0 if is_expanded else 0.0,
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
+            visible=False # Desactivado temporalmente
         )
         
         # Columna principal
@@ -675,8 +676,8 @@ class TrackListView:
         if previous_index >= 0:
             tracks_list[previous_index].expanded = False
         
-        if len(tracks_list[track_index].sections) > 0:
-            tracks_list[track_index].expanded = True
+        # if len(tracks_list[track_index].sections) > 0:
+        #     tracks_list[track_index].expanded = True
         
         state.current_index = track_index
         state.tracks = tracks_list
