@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "livecue"
-version = "4.0.11-beta.2"
+version = "4.0.15-beta.2"
 description = "Ableton Live setlist controller with OSC and Flet UI"
 authors = ["Mario Collado Rodríguez <mcolladorguez@gmail.com>"]
 license = "CC BY-NC-SA 4.0"

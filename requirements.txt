@@ -1,6 +1,6 @@
 # LiveCue - Requirements
 # Generado desde pyproject.toml
-# Versión: 4.0.11-beta.2
+# Versión: 4.0.15-beta.2
 
 # Core dependencies
 flet>=0.28.3
