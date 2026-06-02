@@ -14,6 +14,14 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 import traceback
 
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 
 def get_logs_base_dir() -> Path:
     """Obtiene el directorio base para logs según el entorno"""

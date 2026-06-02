@@ -2,15 +2,18 @@
 # Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
-import flet as ft
-from core.state import state
-from ui.components import StatusBar
 import asyncio
-from ui.themes import ThemeManager
-from setlist.manager import manager
-from core.playback import playback
-from ui.track_list import TrackListView
+
+import flet as ft
+
 from core.i18n import i18n
+from core.playback import playback
+from core.state import state
+from setlist.manager import manager
+from ui.components import StatusBar
+from ui.themes import ThemeManager
+from ui.track_list import TrackListView
+
 
 # ============================================
 # DIALOG MANAGER
@@ -20,11 +23,18 @@ class DialogManager:
         self.page = page
         self.theme = theme
 
+    def _set_status(self, message: str, color_key: str):
+        StatusBar.instance.text.value = f"● {message}"
+        StatusBar.instance.text.color = self.theme.get(color_key)
+        self.page.update()
+
+    async def _close_dialog(self, dialog):
+        dialog.open = False
+        self.page.update()
+
     async def show_save_setlist(self):
         if not state.locators:
-            StatusBar.instance.text.value = f"● {i18n.get('dialog_save_warning_no_locators')}"
-            StatusBar.instance.text.color = self.theme.get("button_stop")
-            self.page.update()
+            self._set_status(i18n.get("dialog_save_warning_no_locators"), "button_stop")
             return
 
         name_field = ft.TextField(
@@ -43,8 +53,7 @@ class DialogManager:
         error_text = ft.Text("", size=12, color=ft.Colors.RED_400, visible=False)
 
         async def close_dlg(e=None):
-            dlg.open = False
-            self.page.update()
+            await self._close_dialog(dlg)
 
         async def do_save(e=None):
             name = name_field.value.strip()
@@ -56,8 +65,10 @@ class DialogManager:
 
             if manager.save(name, state.locators, state.tracks):
                 sections_count = sum(len(t.sections) for t in state.tracks)
-                StatusBar.instance.text.value = f"● {i18n.get('dialog_save_success', name, len(state.locators), len(state.tracks), sections_count)}"
-                StatusBar.instance.text.color = self.theme.get("button_play")
+                self._set_status(
+                    i18n.get("dialog_save_success", name, len(state.locators), len(state.tracks), sections_count),
+                    "button_play",
+                )
                 await close_dlg()
                 await self._update_setlist_counter()
             else:
@@ -77,28 +88,28 @@ class DialogManager:
                     name_field,
                     ft.Text(
                         i18n.get("dialog_save_info", len(state.locators), len(state.tracks)),
-                        size=12, 
-                        italic=True, 
-                        color=self.theme.get("text_secondary")
+                        size=12,
+                        italic=True,
+                        color=self.theme.get("text_secondary"),
                     ),
-                    error_text
-                ]
+                    error_text,
+                ],
             ),
             actions=[
                 ft.TextButton(
-                    i18n.get("cancel"), 
+                    i18n.get("cancel"),
                     on_click=lambda e: self.page.run_task(close_dlg, e),
-                    style=ft.ButtonStyle(color=self.theme.get("text_secondary"))
+                    style=ft.ButtonStyle(color=self.theme.get("text_secondary")),
                 ),
                 ft.OutlinedButton(
-                    i18n.get("btn_save"), 
+                    i18n.get("btn_save"),
                     on_click=lambda e: self.page.run_task(do_save, e),
                     style=ft.ButtonStyle(
                         color=self.theme.get("accent"),
                         side=ft.BorderSide(1.5, self.theme.get("accent")),
-                        shape=ft.RoundedRectangleBorder(radius=8)
-                    )
-                )
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                    ),
+                ),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
             shape=ft.RoundedRectangleBorder(radius=12),
@@ -109,8 +120,7 @@ class DialogManager:
         saved = manager.list_all()
 
         async def close_dlg(e=None):
-            dlg.open = False
-            self.page.update()
+            await self._close_dialog(dlg)
 
         async def do_load(e=None):
             if not dropdown.value:
@@ -119,9 +129,7 @@ class DialogManager:
             try:
                 data = manager.load(dropdown.value)
                 if not data or "locators" not in data:
-                    StatusBar.instance.text.value = f"● {i18n.get('dialog_load_error')}"
-                    StatusBar.instance.text.color = self.theme.get("button_stop")
-                    self.page.update()
+                    self._set_status(i18n.get("dialog_load_error"), "button_stop")
                     return
 
                 if state.is_playing:
@@ -141,13 +149,15 @@ class DialogManager:
                 await TrackListView.instance.update(force_refresh=True)
 
                 total_sections = sum(len(t.sections) for t in state.tracks)
-                StatusBar.instance.text.value = f"● {i18n.get('dialog_load_success', data['name'], len(state.locators), len(state.tracks), total_sections)}"
-                StatusBar.instance.text.color = self.theme.get("button_play")
-                self.page.update()
+                self._set_status(
+                    i18n.get("dialog_load_success", data["name"], len(state.locators), len(state.tracks), total_sections),
+                    "button_play",
+                )
                 await close_dlg()
             except Exception as ex:
                 print(f"[ERROR] do_load: {ex}")
                 import traceback
+
                 traceback.print_exc()
 
         if saved:
@@ -169,28 +179,28 @@ class DialogManager:
                 controls=[
                     dropdown,
                     ft.Text(
-                        i18n.get("dialog_load_count", len(saved)), 
-                        size=12, 
+                        i18n.get("dialog_load_count", len(saved)),
+                        size=12,
                         italic=True,
-                        color=self.theme.get("text_secondary")
-                    )
-                ]
+                        color=self.theme.get("text_secondary"),
+                    ),
+                ],
             )
             actions = [
                 ft.TextButton(
-                    i18n.get("cancel"), 
+                    i18n.get("cancel"),
                     on_click=lambda e: self.page.run_task(close_dlg, e),
-                    style=ft.ButtonStyle(color=self.theme.get("text_secondary"))
+                    style=ft.ButtonStyle(color=self.theme.get("text_secondary")),
                 ),
                 ft.OutlinedButton(
-                    i18n.get("btn_load"), 
+                    i18n.get("btn_load"),
                     on_click=lambda e: self.page.run_task(do_load, e),
                     style=ft.ButtonStyle(
                         color=self.theme.get("accent"),
                         side=ft.BorderSide(1.5, self.theme.get("accent")),
-                        shape=ft.RoundedRectangleBorder(radius=8)
-                    )
-                )
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                    ),
+                ),
             ]
         else:
             content = ft.Column(
@@ -200,22 +210,22 @@ class DialogManager:
                 controls=[
                     ft.Text(i18n.get("dialog_load_empty"), size=14, color=self.theme.get("text_primary")),
                     ft.Text(
-                        i18n.get("dialog_load_empty_hint"), 
-                        size=11, 
+                        i18n.get("dialog_load_empty_hint"),
+                        size=11,
                         italic=True,
-                        color=self.theme.get("text_secondary")
-                    )
-                ]
+                        color=self.theme.get("text_secondary"),
+                    ),
+                ],
             )
             actions = [
                 ft.OutlinedButton(
-                    i18n.get("close"), 
+                    i18n.get("close"),
                     on_click=lambda e: self.page.run_task(close_dlg, e),
                     style=ft.ButtonStyle(
                         color=self.theme.get("text_secondary"),
                         side=ft.BorderSide(1.5, self.theme.get("text_secondary")),
-                        shape=ft.RoundedRectangleBorder(radius=8)
-                    )
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                    ),
                 )
             ]
 
@@ -231,7 +241,7 @@ class DialogManager:
         self.page.open(dlg)
 
     async def _update_setlist_counter(self):
-            count = len(manager.list_all())
-            if hasattr(self, 'save_counter'):
-                self.save_counter.value = f"💾 {count}"
-                self.page.update()
+        count = len(manager.list_all())
+        if hasattr(self, "save_counter"):
+            self.save_counter.value = f"💾 {count}"
+            self.page.update()

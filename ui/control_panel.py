@@ -1,17 +1,15 @@
-# ui/components.py
+# ui/control_panel.py
 # Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
 import flet as ft
 import time
-import threading
 import asyncio
 from core.state import state
 from ui.themes import ThemeManager
 from core.playback import playback
 from core.utils import icon
 from ui.track_list import TrackListView
-from setlist.manager import manager
 from ui.components import MetronomeButton, TempoDisplay, BeatIndicator, StatusBar
 from core.i18n import i18n
 
@@ -109,6 +107,15 @@ class ControlPanel:
             ]
         )
 
+    def _set_status(self, message: str, color_key: str, refresh: bool = True):
+        StatusBar.instance.text.value = message
+        StatusBar.instance.text.color = self.theme.get(color_key)
+        if refresh:
+            self.page.update()
+
+    def _set_status_icon(self, message: str, color_key: str, refresh: bool = True):
+        self._set_status(f"● {message}", color_key, refresh=refresh)
+
     def _create_icon_only_button(self, icon_widget, on_click, color_key):
         """Crea un botón con solo el icono (sin texto)"""
         return ft.Container(
@@ -163,10 +170,10 @@ class ControlPanel:
         try:
             is_on = playback.toggle_metronome()
             self.metronome_btn.set_state(is_on)
-            
-            StatusBar.instance.text.value = i18n.get("status_metronome", i18n.get("status_metronome_on") if is_on else i18n.get("status_metronome_off"))
-            StatusBar.instance.text.color = self.theme.get("button_metro_on") if is_on else self.theme.get("text_secondary")
-            self.page.update()
+            self._set_status(
+                i18n.get("status_metronome", i18n.get("status_metronome_on") if is_on else i18n.get("status_metronome_off")),
+                "button_metro_on" if is_on else "text_secondary",
+            )
         except Exception as ex:
             print(f"[ERROR] _on_metronome_click: {ex}")
 
@@ -176,9 +183,7 @@ class ControlPanel:
             track_count = state.get_track_count()
             
             if current_idx < 0 or current_idx >= track_count:
-                StatusBar.instance.text.value = i18n.get("status_no_track_selected")
-                StatusBar.instance.text.color = self.theme.get("button_stop")
-                self.page.update()
+                self._set_status(i18n.get("status_no_track_selected"), "button_stop")
                 return
             
             if state.is_playing:
@@ -195,24 +200,18 @@ class ControlPanel:
                         page_update_fn=self.page.update
                     )
                 
-                StatusBar.instance.text.value = i18n.get("status_play", track.title)
-                StatusBar.instance.text.color = self.theme.get("button_play")
-                self.page.update()
+                self._set_status(i18n.get("status_play", track.title), "button_play")
                 # Solo actualizar el track actual, no toda la lista
                 await TrackListView.instance.update_single_track(current_idx)
             else:
-                StatusBar.instance.text.value = i18n.get("status_play_error")
-                StatusBar.instance.text.color = self.theme.get("button_stop")
-                self.page.update()
+                self._set_status(i18n.get("status_play_error"), "button_stop")
         except Exception as ex:
             print(f"[ERROR] _on_play: {ex}")
 
     async def _on_stop(self, e):
         try:
             playback.stop()
-            StatusBar.instance.text.value = i18n.get("status_stop")
-            StatusBar.instance.text.color = self.theme.get("button_stop")
-            self.page.update()
+            self._set_status(i18n.get("status_stop"), "button_stop")
         except Exception as ex:
             print(f"[ERROR] _on_stop: {ex}")
 
@@ -231,13 +230,9 @@ class ControlPanel:
                 
                 track = state.get_current_track()
                 if track:
-                    StatusBar.instance.text.value = i18n.get("status_next", track.title)
-                    StatusBar.instance.text.color = self.theme.get("button_play")
-                    self.page.update()
+                    self._set_status(i18n.get("status_next", track.title), "button_play")
             else:
-                StatusBar.instance.text.value = i18n.get("status_last_track")
-                StatusBar.instance.text.color = self.theme.get("text_secondary")
-                self.page.update()
+                self._set_status(i18n.get("status_last_track"), "text_secondary")
         except Exception as ex:
             print(f"[ERROR] _on_next: {ex}")
 
@@ -256,13 +251,9 @@ class ControlPanel:
                 
                 track = state.get_current_track()
                 if track:
-                    StatusBar.instance.text.value = i18n.get("status_prev", track.title)
-                    StatusBar.instance.text.color = self.theme.get("button_play")
-                    self.page.update()
+                    self._set_status(i18n.get("status_prev", track.title), "button_play")
             else:
-                StatusBar.instance.text.value = i18n.get("status_first_track")
-                StatusBar.instance.text.color = self.theme.get("text_secondary")
-                self.page.update()
+                self._set_status(i18n.get("status_first_track"), "text_secondary")
         except Exception as ex:
             print(f"[ERROR] _on_prev: {ex}")
 
@@ -362,9 +353,7 @@ class ControlPanel:
                 # PASO 7: Completado
                 track_count = state.get_track_count()
                 self._update_scan_ui(i18n.get("scan_found", track_count), 100, scanning=True)
-                
-                StatusBar.instance.text.value = f"● {i18n.get('status_scan_complete', track_count)}"
-                StatusBar.instance.text.color = self.theme.get("button_play")
+                self._set_status_icon(i18n.get("status_scan_complete", track_count), "button_play")
                 
                 # Mostrar mensaje de éxito 1.5 segundos
                 await asyncio.sleep(1.5)
@@ -372,8 +361,7 @@ class ControlPanel:
             else:
                 # Error en scan
                 self._update_scan_ui(i18n.get("scan_error"), 0, scanning=True)
-                StatusBar.instance.text.value = f"● {i18n.get('status_scan_error')}"
-                StatusBar.instance.text.color = self.theme.get("button_stop")
+                self._set_status_icon(i18n.get("status_scan_error"), "button_stop")
                 await asyncio.sleep(2)
             
         except Exception as ex:
@@ -382,8 +370,7 @@ class ControlPanel:
             traceback.print_exc()
             
             self._update_scan_ui(i18n.get("scan_error_critical"), 0, scanning=True)
-            StatusBar.instance.text.value = f"● ✗ Error: {str(ex)}"
-            StatusBar.instance.text.color = self.theme.get("button_stop")
+            self._set_status_icon(f"✗ Error: {str(ex)}", "button_stop")
             await asyncio.sleep(2)
             
         finally:

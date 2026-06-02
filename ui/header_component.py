@@ -7,220 +7,12 @@ from version_info import APP_VERSION
 from ui.themes import ThemeManager
 from ui.about_dialog import show_about_dialog
 from ui.qr_dialog import show_qr_dialog
-import socket
-import subprocess
-import re
 import time
 import threading
-import asyncio
-from core.state import state
-from core.playback import playback
-from core.logger import log_info, log_error
+from core.constants import FLASK_PORT
 from core.i18n import i18n
 from core.utils import icon
-
-
-def get_local_ip():
-    """Obtiene la IP local de la máquina (funciona sin Internet)"""
-    
-    def is_valid_ip(ip):
-        """Filtra IPs inválidas"""
-        if not ip or ip.startswith("127."):  # localhost
-            return False
-        if ip.startswith("169.254."):  # link-local (APIPA)
-            return False
-        if ip.startswith("172.17.") or ip.startswith("172.18."):  # Docker común
-            return False
-        if ip.startswith("100."):  # Tailscale
-            return False
-        return True
-    
-    def is_virtual_adapter(adapter_name):
-        """Detecta si es un adaptador virtual"""
-        if not adapter_name:
-            return False
-        adapter_lower = adapter_name.lower()
-        virtual_keywords = [
-            'virtualbox', 'vmware', 'vbox', 'vethernet',
-            'hyper-v', 'docker', 'wsl', 'loopback'
-        ]
-        return any(keyword in adapter_lower for keyword in virtual_keywords)
-    
-    def prioritize_ip(ip):
-        """Asigna prioridad a las IPs (menor = mejor)"""
-        if ip.startswith("192.168.") or ip.startswith("10."):  # Redes privadas comunes
-            # Evitar rangos de VirtualBox (192.168.56.x, 192.168.99.x)
-            parts = ip.split(".")
-            if len(parts) >= 3:
-                third_octet = int(parts[2])
-                if third_octet in [56, 99]:  # VirtualBox común
-                    return 10  # Baja prioridad
-            return 1
-        if ip.startswith("172."):  # Rango 172.16-31 (privado)
-            parts = ip.split(".")
-            if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
-                return 1
-        return 2  # Otras IPs públicas/válidas
-    
-    # Método 1: Intentar con netifaces (más confiable)
-    try:
-        import netifaces
-        all_ips = []
-        for interface in netifaces.interfaces():
-            # Filtrar interfaces virtuales por nombre
-            if is_virtual_adapter(interface):
-                continue
-            
-            addrs = netifaces.ifaddresses(interface)
-            if netifaces.AF_INET in addrs:
-                for addr in addrs[netifaces.AF_INET]:
-                    ip = addr.get('addr')
-                    if is_valid_ip(ip):
-                        all_ips.append(ip)
-        
-        if all_ips:
-            # Ordenar por prioridad y retornar la mejor
-            all_ips.sort(key=prioritize_ip)
-            return all_ips[0]
-    except ImportError:
-        pass
-    except Exception:
-        pass
-    
-    # Método 2: Parsear comandos del sistema
-    try:
-        import platform
-        if platform.system() == "Windows":
-            result = subprocess.run(
-                ["ipconfig"],
-                capture_output=True,
-                text=True,
-                timeout=2
-            )
-            if result.returncode == 0:
-                all_ips = []
-                current_adapter = None
-                
-                for line in result.stdout.split('\n'):
-                    # Detectar nombre del adaptador
-                    if "adaptador" in line.lower() or "adapter" in line.lower():
-                        current_adapter = line.strip()
-                    
-                    # Buscar IPv4
-                    elif "IPv4" in line or "Dirección IPv4" in line:
-                        match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
-                        if match:
-                            ip = match.group(1)
-                            # Filtrar si el adaptador es virtual
-                            if current_adapter and is_virtual_adapter(current_adapter):
-                                continue
-                            if is_valid_ip(ip):
-                                all_ips.append(ip)
-                
-                if all_ips:
-                    all_ips.sort(key=prioritize_ip)
-                    return all_ips[0]
-        else:
-            # Linux/Mac
-            for cmd in [["ip", "-4", "addr"], ["ifconfig"]]:
-                try:
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=2
-                    )
-                    if result.returncode == 0:
-                        all_ips = []
-                        for match in re.finditer(r'inet (\d+\.\d+\.\d+\.\d+)', result.stdout):
-                            ip = match.group(1)
-                            if is_valid_ip(ip):
-                                all_ips.append(ip)
-                        
-                        if all_ips:
-                            all_ips.sort(key=prioritize_ip)
-                            return all_ips[0]
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    continue
-    except Exception:
-        pass
-    
-    # Método 3: Fallback al método antiguo (requiere Internet)
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        if is_valid_ip(ip):
-            return ip
-    except Exception:
-        pass
-    
-    # Fallback final
-    return "127.0.0.1"
-
-
-def get_tailscale_ip():
-    """Obtiene la IP de Tailscale si está disponible"""
-    try:
-        # Método 1: Intentar con el comando tailscale
-        result = subprocess.run(
-            ["tailscale", "ip", "-4"],
-            capture_output=True,
-            text=True,
-            timeout=2
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            ip = result.stdout.strip()
-            # Validar que sea una IP de Tailscale (100.x.x.x)
-            if ip.startswith("100."):
-                return ip
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-        pass
-    
-    try:
-        # Método 2: Buscar en las interfaces de red
-        import platform
-        
-        if platform.system() == "Windows":
-            # En Windows, buscar interfaces Tailscale
-            result = subprocess.run(
-                ["ipconfig"],
-                capture_output=True,
-                text=True,
-                timeout=2
-            )
-            if result.returncode == 0:
-                # Buscar sección de Tailscale y extraer IPv4
-                lines = result.stdout.split('\n')
-                in_tailscale = False
-                for line in lines:
-                    if "Tailscale" in line or "tailscale" in line:
-                        in_tailscale = True
-                    elif in_tailscale and "IPv4" in line:
-                        match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
-                        if match:
-                            ip = match.group(1)
-                            if ip.startswith("100."):
-                                return ip
-                    elif in_tailscale and line.strip() == "":
-                        in_tailscale = False
-        else:
-            # Linux/Mac: Buscar interfaz tailscale0
-            result = subprocess.run(
-                ["ip", "-4", "addr", "show", "tailscale0"],
-                capture_output=True,
-                text=True,
-                timeout=2
-            )
-            if result.returncode == 0:
-                match = re.search(r'inet (\d+\.\d+\.\d+\.\d+)', result.stdout)
-                if match:
-                    return match.group(1)
-    except Exception:
-        pass
-    
-    return None
+from core.network import get_local_ip, get_tailscale_ip
 
 class SetTimer:
     """Temporizador para medir duración del directo"""
@@ -294,7 +86,7 @@ class SetTimer:
 def create_header(
     page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft.Text,
     save_btn: ft.IconButton, load_btn: ft.IconButton, get_color,
-    web_port: int = 5000, set_timer: SetTimer = None
+    web_port: int = FLASK_PORT, set_timer: SetTimer = None
 ) -> ft.Container:
     """
     Header con logo y selector a la izquierda, metrónomo centrado y controles a la derecha.
@@ -309,6 +101,26 @@ def create_header(
         """Callback para cambiar paleta desde PopupMenu"""
         palette_dropdown.value = palette_name
         palette_dropdown.on_change(None)  # Trigger el cambio
+
+    def _network_chip(label: str, value: str, color_key: str, tooltip: str, on_click):
+        return ft.Container(
+            content=ft.Row(
+                spacing=4,
+                controls=[
+                    icon("network", size=14, color=get_color(color_key)),
+                    ft.Text(f"{label}:", size=9, weight=ft.FontWeight.BOLD, color=get_color(color_key)),
+                    ft.Text(f"{value}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
+                    ft.Icon(ft.Icons.QR_CODE_2_ROUNDED, size=14, color=get_color(color_key)),
+                ],
+            ),
+            padding=ft.padding.symmetric(horizontal=8, vertical=3),
+            border_radius=10,
+            bgcolor=get_color("bg_card") + "20",
+            border=ft.border.all(1, get_color(color_key) + "30"),
+            tooltip=tooltip,
+            ink=True,
+            on_click=on_click,
+        )
 
     # Display y controles del temporizador
     timer_display = ft.Text(
@@ -464,45 +276,23 @@ def create_header(
     
     # Indicadores de red
     network_indicators = [
-        ft.Container(
-            content=ft.Row(
-                spacing=4,
-                controls=[
-                    icon("network", size=14, color=get_color("accent")),
-                    ft.Text("WLAN:", size=9, weight=ft.FontWeight.BOLD, color=get_color("accent")),
-                    ft.Text(f"{local_ip}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
-                    ft.Icon(ft.Icons.QR_CODE_2_ROUNDED, size=14, color=get_color("accent")),
-                ],
-            ),
-            padding=ft.padding.symmetric(horizontal=8, vertical=3),
-            border_radius=10,
-            bgcolor=get_color("bg_card") + "20",
-            border=ft.border.all(1, get_color("accent") + "30"),
-            tooltip=i18n.get("header_qr_tooltip") + f"\nOSC: {local_ip}:11001",
-            ink=True,
-            on_click=lambda e: show_qr_dialog(page, get_color, local_ip, web_port),
+        _network_chip(
+            "WLAN",
+            local_ip,
+            "accent",
+            i18n.get("header_qr_tooltip") + f"\nOSC: {local_ip}:11001",
+            lambda e: show_qr_dialog(page, get_color, local_ip, web_port),
         )
     ]
     
     if tailscale_ip and tailscale_ip != local_ip:
         network_indicators.append(
-            ft.Container(
-                content=ft.Row(
-                    spacing=4,
-                    controls=[
-                        icon("network", size=14, color=get_color("button_play")),
-                        ft.Text("VPN:", size=9, weight=ft.FontWeight.BOLD, color=get_color("button_play")),
-                        ft.Text(f"{tailscale_ip}", size=11, weight=ft.FontWeight.W_600, color=get_color("text_primary")),
-                        ft.Icon(ft.Icons.QR_CODE_2_ROUNDED, size=14, color=get_color("button_play")),
-                    ],
-                ),
-                padding=ft.padding.symmetric(horizontal=8, vertical=3),
-                border_radius=10,
-                bgcolor=get_color("bg_card") + "20",
-                border=ft.border.all(1, get_color("button_play") + "30"),
-                tooltip=i18n.get("header_qr_tooltip") + f"\nVPN: {tailscale_ip}:{web_port}",
-                ink=True,
-                on_click=lambda e: show_qr_dialog(page, get_color, tailscale_ip, web_port),
+            _network_chip(
+                "VPN",
+                tailscale_ip,
+                "button_play",
+                i18n.get("header_qr_tooltip") + f"\nVPN: {tailscale_ip}:{web_port}",
+                lambda e: show_qr_dialog(page, get_color, tailscale_ip, web_port),
             )
         )
 

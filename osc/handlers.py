@@ -2,7 +2,8 @@
 # Copyright (c) 2026 Mario Collado Rodríguez - CC BY-NC-SA 4.0
 # NO uso comercial sin autorización - mcolladorguez@gmail.com
 
-from core.state import state, Locator, Track, Section, ClickEvent
+from core.state import state
+from domain.models import ClickEvent, Locator, Section, Track
 from osc.client import send_message
 from core.logger import log_info, log_error, log_warning, log_debug
 import threading

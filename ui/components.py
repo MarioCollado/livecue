@@ -32,6 +32,11 @@ class BeatIndicator:
             ),
             padding=ft.padding.symmetric(horizontal=12, vertical=12)
         )
+
+    @staticmethod
+    def _request_update(page_update_fn):
+        if page_update_fn and callable(page_update_fn):
+            page_update_fn()
     
     def pulse(self, beat: int, time_signature: int, page_update_fn):
         """
@@ -54,16 +59,14 @@ class BeatIndicator:
         inactive.opacity = 0.3
 
         # Actualizar UI de forma segura
-        if page_update_fn and callable(page_update_fn):
-            page_update_fn()
+        self._request_update(page_update_fn)
         
         # Cancelar fade anterior si todavía está pendiente y programar uno nuevo
         def fade():
             try:
                 active.opacity = 0.3
                 active.bgcolor = self.get_color("text_secondary")
-                if page_update_fn and callable(page_update_fn):
-                    page_update_fn()
+                self._request_update(page_update_fn)
             except:
                 pass
 
@@ -165,9 +168,6 @@ class MetronomeButton:
     def _update_style(self):
         """Actualiza el estilo del botón"""
         try:
-            # Actualizar texto
-            self.text.value = "" if self.is_on else ""
-            
             # Actualizar color de fondo
             self.button.bgcolor = self.get_color("button_metro_on" if self.is_on else "button_metro")
             

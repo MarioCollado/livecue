@@ -229,16 +229,9 @@ class TrackItemBuilder:
         section_items = []
         
         for sec_idx, section in enumerate(track.sections):
-            # CRÍTICO: Crear closure para capturar valores correctos
-            # Sin esto, todos los callbacks usarían el último sec_idx del loop
-            def make_handler(ti, si):
-                def handler(e):
-                    print(f"[CALLBACK] Handler creado para track={ti}, section={si}")
-                    page.run_task(on_section_click, ti, si)
-                return handler
-            
-            # Pasar los valores ACTUALES de track_index y sec_idx
-            handler = make_handler(track_index, sec_idx)
+            def handler(e, ti=track_index, si=sec_idx):
+                print(f"[CALLBACK] Handler creado para track={ti}, section={si}")
+                page.run_task(on_section_click, ti, si)
             
             section_items.append(
                 self._create_section_item_sync(track_index, sec_idx, section, handler)
@@ -364,6 +357,29 @@ class TrackListView:
         self._update_lock = threading.Lock()
         
         TrackListView.instance = self
+
+    def _track_callbacks(self, track_index: int):
+        """Construye los callbacks reutilizables de un track."""
+        return (
+            lambda e: self.page.run_task(self._on_track_click, track_index),
+            lambda e: self.page.run_task(self._toggle_expand, track_index),
+            lambda e, idx=track_index: self.page.run_task(self._toggle_auto_continue, idx),
+            lambda e, idx=track_index: self.page.run_task(self._toggle_loop, idx),
+        )
+
+    def _build_track_header(self, track_index: int, track, is_selected: bool, has_sections: bool, is_expanded: bool):
+        on_click, on_toggle, on_toggle_auto_continue, on_toggle_loop = self._track_callbacks(track_index)
+        return self.item_builder.create_track_header(
+            track_index,
+            track,
+            is_selected,
+            has_sections,
+            is_expanded,
+            on_click,
+            on_toggle,
+            on_toggle_auto_continue,
+            on_toggle_loop,
+        )
     
     # ============================================
     # UPDATE METHODS
@@ -437,12 +453,8 @@ class TrackListView:
             track_column = draggable.content.content
             
             # Actualizar header y forzar render antes de la animacion
-            track_column.controls[0] = self.item_builder.create_track_header(
-                track_index, track, is_selected, has_sections, is_expanded,
-                lambda e: self.page.run_task(self._on_track_click, track_index),
-                lambda e: self.page.run_task(self._toggle_expand, track_index),
-                lambda e, idx=track_index: self.page.run_task(self._toggle_auto_continue, idx),
-                lambda e, idx=track_index: self.page.run_task(self._toggle_loop, idx)
+            track_column.controls[0] = self._build_track_header(
+                track_index, track, is_selected, has_sections, is_expanded
             )
             # Refrescar solo el header sin esperar a la animacion de secciones
             try:
@@ -611,13 +623,7 @@ class TrackListView:
         is_expanded = track.expanded
         
         # Header
-        header = self.item_builder.create_track_header(
-            track_index, track, is_selected, has_sections, is_expanded,
-            lambda e: self.page.run_task(self._on_track_click, track_index),
-            lambda e: self.page.run_task(self._toggle_expand, track_index),
-            lambda e, idx=track_index: self.page.run_task(self._toggle_auto_continue, idx),
-            lambda e, idx=track_index: self.page.run_task(self._toggle_loop, idx)
-        )
+        header = self._build_track_header(track_index, track, is_selected, has_sections, is_expanded)
         
         # Secciones con animaciones modernas
         sections_container = ft.Container(
