@@ -2,263 +2,243 @@
 
 # LiveCue - Ableton Setlist Controller
 
-LiveCue es una herramienta profesional para el manejo de setlists y control de Ableton Live en tiempo real. Desarrollada en Python, ofrece una interfaz moderna y funcionalidades avanzadas para músicos y técnicos de sonido.
+LiveCue es una app de escritorio para controlar setlists de Ableton Live con UI en Flet, comunicacion OSC y panel web integrado.
 
----
+La aplicacion esta pensada para:
+- escanear locators y secciones desde Ableton
+- navegar entre tracks y secciones
+- guardar y cargar setlists locales
+- controlar la reproduccion desde una interfaz desktop o desde el navegador
+- activar o desactivar el click/metronomo con un boton dedicado
 
-## 🎯 Características Principales
+## Stack actual
 
-### Control de Setlist
-- **Gestión de Tracks**: Visualización jerárquica de tracks con sus secciones (Intro, Verso, Estribillo, etc.)
-- **Navegación Intuitiva**: Play, Stop, Next, Previous 
-- **Reproducción desde Secciones**: 🔨 (En progreso) Click en cualquier sección para comenzar desde ese punto exacto
-- **Drag & Drop**: Reordena tracks arrastrando para ajustar el orden del setlist sobre la marcha
+- **UI desktop:** Flet
+- **Backend OSC:** python-osc
+- **Panel web:** Flask
+- **Persistencia:** JSON local para setlists
+- **Lenguaje:** Python 3.12+
 
-### Comunicación OSC
-- **Bidireccional**: Envía comandos y recibe estado de Ableton en tiempo real
-- **Auto-Scan**: Detección automática de cue points, clips y estructura del arrangement
-- **Listeners**: Seguimiento de playback position, tempo, time signature y metronome state
+## Estructura del proyecto
 
-### Interfaz Visual
-- **Temas Personalizables**: 🔨 (En progreso)
-- **Beat Indicator**: Visualización del pulso en tiempo real sincronizada con Ableton
-- **Progress Tracking**: (En progreso) Barra de progreso y marcadores visuales de posición
-- **Cronómetro de Set**: Temporizador con start/pause/reset para medir la duración del directo
-
-### Persistencia de Datos
-- **Guardar/Cargar Setlists**: Almacenamiento JSON de locators, tracks y secciones
-- **Recuperación Rápida**: Carga configuraciones previas sin necesidad de re-escanear
-
-### Control Remoto Web
-- **Servidor Flask Integrado**: Acceso desde móvil/tablet en la misma red
-- **Detección de IP**: Muestra automáticamente IPs locales y Tailscale VPN
-- **Control Completo**: Play, Stop, Metronome toggle desde cualquier dispositivo
-
----
-
-## 🏗️ Arquitectura del Proyecto
-
-```
-LiveCue/
-├── main.py                      # Punto de entrada principal
-├── version_info.py              # Información de versión
-│
-├── core/                        # Lógica de negocio
-│   ├── constants.py            # Configuración OSC y directorios
-│   ├── state.py                # Estado global thread-safe (tracks, playback, tempo)
-│   ├── playback.py             # Controlador de reproducción de Ableton
-│   └── utils.py                # Utilidades generales
-│
-├── osc/                         # Comunicación OSC
-│   ├── client.py               # Cliente OSC para enviar a Ableton
-│   ├── server.py               # Servidor OSC para recibir de Ableton
-│   ├── handlers.py             # Procesadores de mensajes OSC
-│   └── web_server.py           # Servidor Flask para control remoto
-│
-├── setlist/                     # Gestión de setlists
-│   └── manager.py              # Serialización/deserialización JSON
-│
-├── ui/                          # Interfaz gráfica
-│   ├── app_ui.py               # Aplicación principal Flet
-│   ├── components.py           # Componentes reutilizables (BeatIndicator, TempoDisplay, etc.)
-│   ├── header_component.py     # Header con cronómetro y controles
-│   ├── themes.py               # Paletas de colores
-│   └── templates/
-│       └── controller_html.py  # Template HTML para control web
-│       └── stop_html.py        # Template HTML para stop button
-│
-└── setlist/data/                # Directorio de setlists guardados (JSON)
+```text
+livecue/
+|-- main.py
+|-- app/
+|   `-- bootstrap.py
+|-- core/
+|   |-- config.py
+|   |-- constants.py
+|   |-- state.py
+|   |-- playback.py
+|   |-- network.py
+|   |-- logger.py
+|   |-- utils.py
+|   |-- i18n.py
+|   `-- license.py
+|-- domain/
+|   `-- models.py
+|-- services/
+|   `-- playback_service.py
+|-- osc/
+|   |-- client.py
+|   |-- handlers.py
+|   |-- server.py
+|   `-- web_server.py
+|-- setlist/
+|   `-- manager.py
+|-- ui/
+|   |-- app_ui.py
+|   |-- components.py
+|   |-- control_panel.py
+|   |-- dialogs.py
+|   |-- header_component.py
+|   |-- managers.py
+|   |-- track_list.py
+|   |-- themes.py
+|   |-- welcome_dialog.py
+|   `-- templates/
+`-- web/
+    `-- server.py
 ```
 
----
+### Notas de arquitectura
 
-## 📋 Requisitos
+- `main.py` es solo el punto de entrada.
+- `app/bootstrap.py` centraliza arranque y apagado.
+- `core/config.py` concentra puertos, rutas y variables de entorno.
+- `core/constants.py`, `core/playback.py` y `osc/web_server.py` siguen como capas de compatibilidad.
+- `domain/` contiene los modelos de datos de la app.
+- `services/` separa la logica de negocio mas pesada.
+- `web/server.py` contiene el servidor Flask real.
+
+## Requisitos
 
 ### Software
-- **Python 3.13+**
-- **Ableton Live** con [AbletonOSC](https://github.com/ideoforms/AbletonOSC) instalado
+
+- Python **3.12** o superior
+- Ableton Live
+- AbletonOSC instalado y configurado en Ableton
 
 ### Dependencias Python
+
+Las dependencias se gestionan con **Poetry** desde `pyproject.toml`.
+
+Instalacion recomendada:
+
 ```bash
-# Interfaz gráfica
-flet>=0.28.3
-
-# Comunicación OSC
-python-osc>=1.8.0
-
-# Servidor web
-flask>=3.0.0
-
-# Utilidades
-pillow>=10.0.0
+poetry install
 ```
 
-Instala todas las dependencias con:
-```bash
-pip install -r requirements.txt
-```
+Si prefieres el flujo legacy, puedes seguir usando `requirements.txt`, pero Poetry es la fuente de verdad actual.
 
----
+## Instalacion
 
-## 🚀 Instalación y Configuración
+### 1. Clonar el repositorio
 
-### 1. Clonar el Repositorio
 ```bash
 git clone https://github.com/MarioCollado/LiveCue.git
 cd LiveCue
 ```
 
-### 2. Instalar Dependencias
+### 2. Instalar dependencias
+
 ```bash
-pip install -r requirements.txt
+poetry install
 ```
 
 ### 3. Configurar Ableton Live
-1. Instala [AbletonOSC](https://github.com/ideoforms/AbletonOSC)
-2. En el arrangement de Ableton, crea **locators** con nomenclatura específica:
-   ```
-   START TRACK "Nombre del Track"
-   
-   END TRACK 
-   ```
 
-3. Crear un pista midi para identificar las diferentes secciones de los tracks:
-   ```
-   Intro
-   Verso 1
-   Estribillo
-   Puente
-   ```
+1. Instala [AbletonOSC](https://github.com/ideoforms/AbletonOSC).
+2. Configura Ableton para exponer los puertos OSC que usa LiveCue:
+   - `LIVE_SEND_PORT = 11000`
+   - `CLIENT_LISTEN_PORT = 11001`
+3. En el arrangement, crea locators con el formato que usa el proyecto:
 
-3. Configura AbletonOSC para escuchar en:
-   - **Puerto de envío**: `11000` (LiveCue → Ableton)
-   - **Puerto de recepción**: `11001` (Ableton → LiveCue)
+```text
+START TRACK "Nombre del Track"
+...
+END TRACK
+```
 
-### 4. Ejecutar la Aplicación
+4. Para las secciones, usa nombres coherentes en tus clips o marcadores, por ejemplo:
+
+```text
+Intro
+Verso 1
+Estribillo
+Puente
+```
+
+### 4. Ejecutar la aplicacion
+
+```bash
+poetry run livecue
+```
+
+Tambien puedes lanzarla directamente con:
+
 ```bash
 python main.py
 ```
 
----
+## Uso basico
 
-## 🎮 Modo de Uso
+1. Abre tu proyecto en Ableton Live.
+2. Ejecuta LiveCue.
+3. Pulsa **SCAN** para detectar tracks y secciones.
+4. Usa **PLAY**, **STOP**, **PREV**, **NEXT** y **CLICK ON/OFF** para navegar y controlar el click.
+5. Guarda el setlist cuando quieras reutilizarlo despues.
 
-### Flujo Básico
-1. **Abrir Ableton**: Carga tu proyecto con locators configurados
-2. **Ejecutar LiveCue**: `python main.py`
-3. **Scan**: Presiona el botón **SCAN** para detectar tracks y secciones
-4. **Navegar**: Usa los controles para reproducir, saltar entre tracks o secciones específicas
-5. **Guardar**: Guarda tu setlist configurado para recuperarlo después
+## Panel web
 
-### Controles Principales
-- **SCAN**: Escanea cue points y clips desde Ableton
-- **PLAY**: Reproduce el track seleccionado desde el inicio
-- **STOP**: Detiene la reproducción
-- **PREV/NEXT**: Navega entre tracks
-- **Click en Sección**: 🔨 (En progreso) Reproduce desde esa sección específica (ideal para ensayos)
-- **METRONOME**: Toggle del click de Ableton
+LiveCue levanta un servidor Flask integrado para control remoto.
 
-### Control Remoto Web
-1. LiveCue muestra las IPs disponibles en el header
-2. Abre `http://[IP]:5000` desde tu móvil/tablet
-3. Controla play/stop/metronome desde cualquier dispositivo en red
+- Puerto por defecto: `5000`
+- URL local: `http://127.0.0.1:5000`
+- En red: usa la IP que muestre el header de la app
+- Desde el movil puedes abrir esa IP directamente para controlar LiveCue sin estar frente al ordenador
 
----
+Si tienes Tailscale o una red local accesible, el header tambien muestra la IP disponible para abrir el panel desde movil o tablet.
 
-## 🎨 Temas Disponibles
+## Configuracion
 
-🔨 (En progreso) Varios temas disponibles para una mayor personalización.
-
-Cambia el tema desde el selector 🎨 en el header.
-
----
-
-## 🔧 Configuración Avanzada
-
-### Puertos OSC
-Edita `core/constants.py`:
-```python
-LIVE_IP = "127.0.0.1"
-LIVE_SEND_PORT = 11000      # Puerto donde Ableton escucha
-CLIENT_LISTEN_PORT = 11001  # Puerto donde LiveCue escucha
-```
-
-### Directorio de Setlists
-Por defecto: `C:\Users\[usuario]\Desktop\CUELIST_ABLETON_SETLIST\LIVECUE APP\setlist\data`
-
-Personalízalo en `core/constants.py`:
-```python
-SETLISTS_DIR = Path(r"C:\tu\ruta\personalizada")
-```
-
----
-
-## 📦 Compilación con PyInstaller
-
-Para crear un ejecutable standalone:
+Las opciones principales viven en `core/config.py` y se pueden sobrescribir por variables de entorno.
 
 ```bash
-pyinstaller --onefile --windowed --icon=icon.ico main.py
+SETLISTS_DIR=...
+LIVE_SEND_PORT=11000
+CLIENT_LISTEN_PORT=11001
+FLASK_PORT=5000
 ```
 
-El `.exe` se generará en `dist/main.exe`
+### Directorio de setlists
 
----
+Por defecto, LiveCue guarda los setlists en una carpeta local de la app. Si quieres cambiarlo, define `SETLISTS_DIR` antes de arrancar.
 
-## 🐛 Resolución de Problemas
+## Flujo de trabajo recomendado
 
-### "No se detectan tracks al hacer SCAN"
-- Verifica que AbletonOSC esté activo en Ableton
-- Confirma que los puertos coincidan (11000/11001)
-- Asegúrate de tener locators con formato `START TRACK "Nombre" / "END TRACK"`
+1. Arranca Ableton.
+2. Abre LiveCue.
+3. Haz un **SCAN** inicial.
+4. Ajusta el orden de tracks si hace falta.
+5. Guarda el setlist.
+6. Usa el panel web para control remoto si lo necesitas.
 
-### "Error al reproducir desde secciones"
-- Las secciones deben estar dentro del rango de un track definido
-- Verifica que los locators de inicio/fin estén correctamente colocados
+## Desarrollo
 
-### "El servidor web no es accesible desde otros dispositivos"
-- Verifica que tu firewall permita conexiones en el puerto 5000
-- Asegúrate de estar en la misma red WiFi/LAN
-  
+Comprobacion rapida de sintaxis:
 
----
+```bash
+python -m compileall app core domain osc services ui web setlist
+```
 
-## 📄 Licencia
+## Solucion de problemas
+
+### No se detectan tracks al hacer SCAN
+
+- Verifica que AbletonOSC este activo.
+- Comprueba que los puertos coincidan con la configuracion.
+- Asegurate de que los locators sigan el formato esperado.
+
+### El panel web no abre desde otro dispositivo
+
+- Revisa el firewall del sistema.
+- Comprueba que ambos dispositivos esten en la misma red.
+- Verifica que el puerto `5000` no este ocupado por otra app.
+
+### No se ven setlists guardados
+
+- Comprueba que `SETLISTS_DIR` apunta a una ruta valida.
+- Verifica que la app tenga permisos de escritura en esa carpeta.
+
+## Licencia
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
-Este proyecto está licenciado bajo **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
+Este proyecto esta licenciado bajo **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
 
-**Copyright © 2026 Mario Collado Rodríguez. Todos los derechos reservados.**
+### Puedes
 
-### ✅ Puedes:
 - Usar el software para fines personales y educativos
 - Modificar y crear versiones derivadas
-- Compartir con otros (con atribución)
+- Compartir el proyecto con atribucion
 
-### ❌ NO puedes:
-- Usar el software con fines comerciales sin autorización escrita
-- Vender el software o versiones modificadas
+### No puedes
+
+- Usarlo con fines comerciales sin autorizacion escrita
+- Vender el software o sus derivados
 - Eliminar los avisos de copyright
 
-### 📧 Licencias Comerciales
-Para uso comercial, contacta: **mcolladorguez@gmail.com**
+Para licencias comerciales, contacta: **mcolladorguez@gmail.com**
 
-Ver archivo [LICENSE](LICENSE) para términos legales completos.
+Consulta el archivo [LICENSE](LICENSE) para los terminos completos.
 
----
+## Autor
 
-## 👨‍💻 Autor
-
-**Mario Collado Rodríguez**  
+**Mario Collado Rodriguez**  
 [GitHub](https://github.com/MarioCollado) | [Email](mailto:mcolladorguez@gmail.com)
 
----
-
-## 📸 Capturas de Pantalla
+## Captura
 
 <img width="1920" height="1080" alt="imagen" src="https://github.com/user-attachments/assets/25077d2e-61f6-4ea7-a982-d4ab3f852517" />
-
----
-
-**¿Preguntas o sugerencias?** Abre un [issue](https://github.com/MarioCollado/LiveCue/issues) en GitHub.
