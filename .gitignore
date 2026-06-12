@@ -136,6 +136,7 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+*.bat
 
 # macOS
 .DS_Store

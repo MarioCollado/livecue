@@ -36,7 +36,7 @@ def log_exc(prefix="ERROR"):
 def icon(name, size=16, color=None):
     """Crea un control SVG desde un archivo en assets/icons/"""
     return ft.Image(
-        src=f"assets/icons/{name}.svg",
+        src=f"icons/{name}.svg",
         width=size,
         height=size,
         color=color,
