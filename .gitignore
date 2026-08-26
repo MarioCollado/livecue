@@ -315,3 +315,5 @@ dev_config.py
 local_settings.py
 tests/__init__.py
 tests/conftest.py
+build_to_new.bat
+build_portable_windows.bat
