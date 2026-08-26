@@ -29,8 +29,7 @@ class DialogManager:
         self.page.update()
 
     async def _close_dialog(self, dialog):
-        dialog.open = False
-        self.page.update()
+        self.page.pop_dialog()
 
     async def show_save_setlist(self):
         if not state.locators:
@@ -114,7 +113,7 @@ class DialogManager:
             actions_alignment=ft.MainAxisAlignment.END,
             shape=ft.RoundedRectangleBorder(radius=12),
         )
-        self.page.open(dlg)
+        self.page.show_dialog(dlg)
 
     async def show_load_setlist(self):
         saved = manager.list_all()
@@ -238,7 +237,7 @@ class DialogManager:
             actions_alignment=ft.MainAxisAlignment.END,
             shape=ft.RoundedRectangleBorder(radius=12),
         )
-        self.page.open(dlg)
+        self.page.show_dialog(dlg)
 
     async def _update_setlist_counter(self):
         count = len(manager.list_all())

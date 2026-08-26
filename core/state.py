@@ -40,6 +40,13 @@ class AppState:
         self.scan_status = ""
         self.scan_error = None
         self.setlist_loaded = False
+        self.view_mode = "fullscreen"
+
+        try:
+            from core.settings import load_settings
+            self.view_mode = load_settings().get("view_mode", "fullscreen")
+        except Exception:
+            pass
 
         log_debug("AppState inicializado", module="Main")
 

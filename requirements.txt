@@ -9,6 +9,9 @@ Flask>=3.0.0
 Pillow>=10.0.0
 python-dotenv>=1.2.1
 
+# QR code generation
+qrcode>=7.3
+
 # Development dependencies (opcional)
 # pytest>=7.4.0
 # pytest-cov>=4.1.0

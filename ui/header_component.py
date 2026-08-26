@@ -24,10 +24,16 @@ class SetTimer:
         self._timer_text = None
         self._update_thread = None
         self._stop_thread = False
+        self._page = None
         
     def set_text_ref(self, text_ref):
         """Asigna la referencia al Text widget"""
         self._timer_text = text_ref
+        # try to capture page reference if the Text control has it
+        try:
+            self._page = getattr(text_ref, 'page', None)
+        except Exception:
+            self._page = None
         
     def start(self):
         """Inicia el temporizador"""
@@ -52,7 +58,10 @@ class SetTimer:
         if self._timer_text:
             self._timer_text.value = "00:00:00"
             try:
-                self._timer_text.update()
+                if self._page:
+                    self._page.update()
+                else:
+                    self._timer_text.update()
             except:
                 pass
             
@@ -66,7 +75,10 @@ class SetTimer:
                 seconds = int(elapsed % 60)
                 self._timer_text.value = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
                 try:
-                    self._timer_text.update()
+                    if self._page:
+                        self._page.update()
+                    else:
+                        self._timer_text.update()
                 except:
                     pass
             time.sleep(1)
@@ -86,10 +98,12 @@ class SetTimer:
 def create_header(
     page: ft.Page, palette_dropdown: ft.Dropdown, save_counter: ft.Text,
     save_btn: ft.IconButton, load_btn: ft.IconButton, get_color,
-    web_port: int = FLASK_PORT, set_timer: SetTimer = None
+    web_port: int = FLASK_PORT, set_timer: SetTimer = None,
+    on_mode_change = None, view_mode: str = "fullscreen"
 ) -> ft.Container:
     """
     Header con logo y selector a la izquierda, metrónomo centrado y controles a la derecha.
+    Soporta modo lateral y compacto adaptativo.
     """
     local_ip = get_local_ip()
     tailscale_ip = get_tailscale_ip()
@@ -113,10 +127,10 @@ def create_header(
                     ft.Icon(ft.Icons.QR_CODE_2_ROUNDED, size=14, color=get_color(color_key)),
                 ],
             ),
-            padding=ft.padding.symmetric(horizontal=8, vertical=3),
+            padding=ft.padding.Padding(left=8, right=8, top=3, bottom=3),
             border_radius=10,
             bgcolor=get_color("bg_card") + "20",
-            border=ft.border.all(1, get_color(color_key) + "30"),
+            border=ft.border.Border.all(1, get_color(color_key) + "30"),
             tooltip=tooltip,
             ink=True,
             on_click=on_click,
@@ -133,6 +147,11 @@ def create_header(
         text_align=ft.TextAlign.CENTER,
     )
     set_timer.set_text_ref(timer_display)
+    # Ensure SetTimer has access to the page for safe updates from threads
+    try:
+        set_timer._page = page
+    except Exception:
+        pass
 
     def on_timer_start(e): set_timer.start()
     def on_timer_pause(e): set_timer.pause()
@@ -154,7 +173,7 @@ def create_header(
                     on_click=on_timer_start,
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
-                        padding=ft.padding.all(4),
+                        padding=ft.padding.Padding(left=4, right=4, top=4, bottom=4),
                         bgcolor=get_color("bg_card") + "AA",
                     ),
                 ),
@@ -166,7 +185,7 @@ def create_header(
                     on_click=on_timer_pause,
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
-                        padding=ft.padding.all(4),
+                        padding=ft.padding.Padding(left=4, right=4, top=4, bottom=4),
                         bgcolor=get_color("bg_card") + "AA",
                     ),
                 ),
@@ -178,13 +197,13 @@ def create_header(
                     on_click=on_timer_reset,
                     style=ft.ButtonStyle(
                         shape=ft.CircleBorder(),
-                        padding=ft.padding.all(4),
+                        padding=ft.padding.Padding(left=4, right=4, top=4, bottom=4),
                         bgcolor=get_color("bg_card") + "AA",
                     ),
                 ),
             ],
         ),
-        padding=ft.padding.symmetric(horizontal=12, vertical=6),
+        padding=ft.padding.Padding(left=12, right=12, top=6, bottom=6),
         border_radius=12,
         bgcolor="#0E0E0E",
     )
@@ -195,14 +214,50 @@ def create_header(
         tooltip=i18n.get("header_theme_tooltip", palette_dropdown.value),
         items=[
             ft.PopupMenuItem(
-                text=name,
+                content=ft.Text(name),
                 on_click=lambda e, n=name: on_palette_change(n)
             )
             for name in ThemeManager.list_themes()
         ],
         style=ft.ButtonStyle(
             shape=ft.CircleBorder(),
-            padding=ft.padding.all(8),
+            padding=ft.padding.Padding(left=8, right=8, top=8, bottom=8),
+            bgcolor=get_color("bg_card") + "AA",
+            overlay_color={
+                ft.ControlState.HOVERED: get_color("accent") + "20",
+            },
+        ),
+    )
+    
+    # Selector de modo de visualización
+    current_mode_icon = ft.Icons.GRID_VIEW_ROUNDED
+    if view_mode == "fullscreen":
+        current_mode_icon = ft.Icons.FULLSCREEN_ROUNDED
+    elif view_mode == "side_panel":
+        current_mode_icon = ft.Icons.VIEW_SIDEBAR_ROUNDED
+    elif view_mode == "compact":
+        current_mode_icon = ft.Icons.PICTURE_IN_PICTURE_ALT_ROUNDED
+
+    mode_selector = ft.PopupMenuButton(
+        content=ft.Icon(current_mode_icon, size=20, color=get_color("accent")),
+        tooltip=f"Modo de vista: {view_mode.replace('_', ' ').title()}",
+        items=[
+            ft.PopupMenuItem(
+                content=ft.Text("🖥️ Pantalla Completa"),
+                on_click=lambda e: on_mode_change("fullscreen") if on_mode_change else None
+            ),
+            ft.PopupMenuItem(
+                content=ft.Text("📱 Panel Lateral"),
+                on_click=lambda e: on_mode_change("side_panel") if on_mode_change else None
+            ),
+            ft.PopupMenuItem(
+                content=ft.Text("🎛️ Ventana Compacta"),
+                on_click=lambda e: on_mode_change("compact") if on_mode_change else None
+            ),
+        ],
+        style=ft.ButtonStyle(
+            shape=ft.CircleBorder(),
+            padding=ft.padding.Padding(left=8, right=8, top=8, bottom=8),
             bgcolor=get_color("bg_card") + "AA",
             overlay_color={
                 ft.ControlState.HOVERED: get_color("accent") + "20",
@@ -219,7 +274,7 @@ def create_header(
         on_click=lambda e: show_about_dialog(page, get_color),
         style=ft.ButtonStyle(
             shape=ft.CircleBorder(),
-            padding=ft.padding.all(8),
+            padding=ft.padding.Padding(left=8, right=8, top=8, bottom=8),
             bgcolor=get_color("bg_card") + "AA",
             overlay_color={
                 ft.ControlState.HOVERED: get_color("accent") + "20",
@@ -227,9 +282,9 @@ def create_header(
         ),
     )
 
-    # Grupo izquierdo: logo + paleta - usando SVG para el logo
+    # Grupo izquierdo: logo + paleta + selector de modo
     left_group = ft.Row(
-        spacing=10,
+        spacing=8,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Container(
@@ -239,79 +294,129 @@ def create_header(
                 shadow=ft.BoxShadow(blur_radius=6, color=get_color("accent") + "40"),
             ),
             palette_selector,
+            mode_selector,
         ]
     )
 
     # Controles de la derecha (guardar, red, versión) - usando SVG para folder
-    right_controls = ft.Row(
-        spacing=10,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-        controls=[
-            ft.Container(
-                content=ft.Row(
-                    spacing=3,
-                    controls=[
-                        ft.Container(
-                            content=ft.Icon(ft.Icons.SAVE_ROUNDED, size=16, color=ft.Colors.WHITE),
-                            width=28, height=28, border_radius=14,
-                            bgcolor=get_color("accent"),
-                            on_click=save_btn.on_click, ink=True,
-                            tooltip=i18n.get("header_save_tooltip"),
-                        ),
-                        ft.Container(
-                            content=ft.Icon(ft.Icons.FOLDER_OPEN_ROUNDED, size=16, color=ft.Colors.WHITE),
-                            width=28, height=28, border_radius=14,
-                            bgcolor=get_color("accent"),
-                            on_click=load_btn.on_click, ink=True,
-                            tooltip=i18n.get("header_load_tooltip"),
-                        ),
-                    ],
+    is_compact_mode = view_mode in ["side_panel", "compact"]
+    
+    if is_compact_mode:
+        # Menú popup compacto para conservar espacio
+        more_actions_btn = ft.PopupMenuButton(
+            content=ft.Icon(ft.Icons.MORE_VERT_ROUNDED, size=20, color=get_color("text_secondary")),
+            tooltip="Más opciones",
+            items=[
+                ft.PopupMenuItem(
+                    content=ft.Text("💾 Guardar Setlist"),
+                    on_click=lambda e: (print("[UI] Popup -> Guardar Setlist"), save_btn.on_click(e))
                 ),
-                padding=2,
-                border_radius=10,
-                bgcolor=get_color("bg_card") + "30",
+                ft.PopupMenuItem(
+                    content=ft.Text("📂 Cargar Setlist"),
+                    on_click=lambda e: (print("[UI] Popup -> Cargar Setlist"), load_btn.on_click(e))
+                ),
+                ft.PopupMenuItem(
+                    content=ft.Text("🌐 Código QR / Red WLAN"),
+                    on_click=lambda e: (print("[UI] Popup -> QR WLAN"), (hasattr(page, 'window') and getattr(page.window,'bring_to_front', lambda: None)()), show_qr_dialog(page, get_color, local_ip, web_port))
+                ),
+            ],
+            style=ft.ButtonStyle(
+                shape=ft.CircleBorder(),
+                padding=ft.padding.Padding(left=8, right=8, top=8, bottom=8),
+                bgcolor=get_color("bg_card") + "AA",
+            ),
+        )
+        
+        if tailscale_ip and tailscale_ip != local_ip:
+            more_actions_btn.items.append(
+                ft.PopupMenuItem(
+                    content=ft.Text("🔒 Código QR / Red VPN"),
+                    on_click=lambda e: show_qr_dialog(page, get_color, tailscale_ip, web_port)
+                )
+            )
+            
+        more_actions_btn.items.append(
+            ft.PopupMenuItem(
+                content=ft.Text("ℹ️ Acerca de LiveCue"),
+                on_click=lambda e: (print("[UI] Popup -> About"), (hasattr(page, 'window') and getattr(page.window,'bring_to_front', lambda: None)()), show_about_dialog(page, get_color))
+            )
+        )
+        
+        right_controls = ft.Row(
+            spacing=5,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[more_actions_btn]
+        )
+    else:
+        right_controls = ft.Row(
+            spacing=10,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Container(
+                    content=ft.Row(
+                        spacing=3,
+                        controls=[
+                            ft.Container(
+                                content=ft.Icon(ft.Icons.SAVE_ROUNDED, size=16, color=ft.Colors.WHITE),
+                                width=28, height=28, border_radius=14,
+                                bgcolor=get_color("accent"),
+                                on_click=save_btn.on_click, ink=True,
+                                tooltip=i18n.get("header_save_tooltip"),
+                            ),
+                            ft.Container(
+                                content=ft.Icon(ft.Icons.FOLDER_OPEN_ROUNDED, size=16, color=ft.Colors.WHITE),
+                                width=28, height=28, border_radius=14,
+                                bgcolor=get_color("accent"),
+                                on_click=load_btn.on_click, ink=True,
+                                tooltip=i18n.get("header_load_tooltip"),
+                            ),
+                        ],
+                    ),
+                    padding=2,
+                    border_radius=10,
+                    bgcolor=get_color("bg_card") + "30",
+                )
+            ]
+        )
+        
+        # Indicadores de red
+        network_indicators = [
+            _network_chip(
+                "WLAN",
+                local_ip,
+                "accent",
+                i18n.get("header_qr_tooltip") + f"\nOSC: {local_ip}:11001",
+                lambda e: show_qr_dialog(page, get_color, local_ip, web_port),
             )
         ]
-    )
-    
-    # Indicadores de red
-    network_indicators = [
-        _network_chip(
-            "WLAN",
-            local_ip,
-            "accent",
-            i18n.get("header_qr_tooltip") + f"\nOSC: {local_ip}:11001",
-            lambda e: show_qr_dialog(page, get_color, local_ip, web_port),
-        )
-    ]
-    
-    if tailscale_ip and tailscale_ip != local_ip:
-        network_indicators.append(
-            _network_chip(
-                "VPN",
-                tailscale_ip,
-                "button_play",
-                i18n.get("header_qr_tooltip") + f"\nVPN: {tailscale_ip}:{web_port}",
-                lambda e: show_qr_dialog(page, get_color, tailscale_ip, web_port),
+        
+        if tailscale_ip and tailscale_ip != local_ip:
+            network_indicators.append(
+                _network_chip(
+                    "VPN",
+                    tailscale_ip,
+                    "button_play",
+                    i18n.get("header_qr_tooltip") + f"\nVPN: {tailscale_ip}:{web_port}",
+                    lambda e: show_qr_dialog(page, get_color, tailscale_ip, web_port),
+                )
             )
-        )
 
-    right_controls.controls.extend(network_indicators)
-    
-    right_controls.controls.extend([
-            ft.Container(
-                content=ft.Text(
-                    f"v{APP_VERSION}",
-                    size=9,
-                    weight=ft.FontWeight.W_600,
-                    color=get_color("text_secondary"),
+        right_controls.controls.extend(network_indicators)
+        
+        right_controls.controls.extend([
+                ft.Container(
+                    content=ft.Text(
+                        f"v{APP_VERSION}",
+                        size=9,
+                        weight=ft.FontWeight.W_600,
+                        color=get_color("text_secondary"),
+                    ),
+                    padding=ft.padding.Padding(left=7, right=7, top=3, bottom=3),
+                    border_radius=8,
+                    bgcolor=get_color("bg_main") + "16",
                 ),
-                padding=ft.padding.symmetric(horizontal=7, vertical=3),
-                border_radius=8,
-                bgcolor=get_color("bg_main") + "16",
-            ),
-            about_btn,
-        ])
+                about_btn,
+            ])
 
     # Estructura principal
     return ft.Container(
@@ -324,7 +429,7 @@ def create_header(
                 right_controls,
             ],
         ),
-        padding=ft.padding.symmetric(horizontal=18, vertical=8),
+        padding=ft.padding.Padding(left=(10 if is_compact_mode else 18), right=(10 if is_compact_mode else 18), top=8, bottom=8),
         height=72,
         bgcolor=get_color("bg_secondary"),
     )

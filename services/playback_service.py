@@ -103,6 +103,11 @@ def play_track(controller, track_index: int, send_message_fn, sleep_fn, state) -
             log_info(f"▶ Reproduciendo: {track.title}", module="Playback")
             log_debug(f"Track index: {track_index}, Locator ID: {locator_id}", module="Playback")
 
+            # Establecemos el índice y reseteamos flags de final antes de los sleeps
+            # para evitar que mensajes OSC encolados de la canción anterior disparen el final
+            state.current_index = track_index
+            track.end_processed = False
+
             controller._force_stop_internal(send_message_fn, sleep_fn)
             sleep_fn(0.12)
 
@@ -111,7 +116,6 @@ def play_track(controller, track_index: int, send_message_fn, sleep_fn, state) -
             send_message_fn("/live/song/start_playing", [])
 
             state.is_playing = True
-            state.current_index = track_index
 
             log_debug(
                 f"Estado actualizado: is_playing=True, current_index={track_index}",
@@ -125,11 +129,23 @@ def play_track(controller, track_index: int, send_message_fn, sleep_fn, state) -
 
 
 def stop(controller, send_message_fn, sleep_fn, state):
-    """Detiene la reproducción."""
+    """Detiene la reproducción preservando el estado del metrónomo."""
 
     with controller._playback_lock:
         try:
             log_info("■ Deteniendo reproducción...", module="Playback")
+
+            # Guardar el estado del metrónomo ANTES de parar
+            # para restaurarlo si Ableton lo resetea internamente
+            metronome_was_on = state.metronome_on
+
+            # Activar flag en handlers para ignorar el update de Ableton
+            # que puede llegar con metronome=0 tras el stop_playing
+            try:
+                from osc.handlers import handlers as _handlers
+                _handlers._ignore_metronome_update = metronome_was_on
+            except Exception:
+                pass  # Si no se puede acceder a handlers, continuar sin el flag
 
             for i in range(2):
                 send_message_fn("/live/song/stop_playing", [])
@@ -137,10 +153,35 @@ def stop(controller, send_message_fn, sleep_fn, state):
                 log_debug(f"Stop enviado ({i+1}/2)", module="Playback")
 
             state.is_playing = False
+
+            # Restaurar el estado del metrónomo si estaba activo.
+            # Ableton puede apagar el metrónomo internamente al recibir stop_playing.
+            # El click solo debe apagarse cuando haya un locator CLICK_OFF explícito.
+            if metronome_was_on:
+                sleep_fn(0.05)
+                send_message_fn("/live/song/set/metronome", [1])
+                log_info(
+                    "🎵 Metrónomo preservado ON tras stop (solo CLICK_OFF lo desactiva)",
+                    module="Playback"
+                )
+
+            # Desactivar el flag — a partir de aquí los updates de Ableton son bienvenidos
+            try:
+                from osc.handlers import handlers as _handlers
+                _handlers._ignore_metronome_update = False
+            except Exception:
+                pass
+
             log_info("■ Reproducción detenida", module="Playback")
 
         except Exception as e:
             log_error("Error deteniendo reproducción", module="Playback", exc=e)
+            # Asegurarse de que el flag queda desactivado incluso con error
+            try:
+                from osc.handlers import handlers as _handlers
+                _handlers._ignore_metronome_update = False
+            except Exception:
+                pass
 
 
 def jump_to_section(controller, track_index: int, section_index: int, send_message_fn, sleep_fn, state) -> bool:
@@ -166,6 +207,10 @@ def jump_to_section(controller, track_index: int, section_index: int, send_messa
                 module="Playback",
             )
 
+            # Establecemos el índice y reseteamos flags de final antes del salto
+            state.current_index = track_index
+            track.end_processed = False
+
             send_message_fn("/live/song/set/current_song_time", [section.beat])
             sleep_fn(0.15)
 
@@ -178,7 +223,6 @@ def jump_to_section(controller, track_index: int, section_index: int, send_messa
 
             sleep_fn(0.05)
             state.is_playing = True
-            state.current_index = track_index
 
             log_debug(
                 f"Salto completado: current_index={track_index}, beat={section.beat}",

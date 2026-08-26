@@ -86,7 +86,7 @@ class ControlPanel:
                         ]
                     ),
                     border_radius=12,
-                    padding=ft.padding.all(18)
+                    padding=ft.padding.Padding(left=18, right=18, top=18, bottom=18)
                 ),
                 ft.Divider(thickness=1, color=self.theme.get("accent"), height=8),
                 ft.Container(
@@ -101,7 +101,7 @@ class ControlPanel:
                         ]
                     ),
                     border_radius=12,
-                    padding=ft.padding.all(18),
+                    padding=ft.padding.Padding(left=18, right=18, top=18, bottom=18),
                     expand=True
                 )
             ]
@@ -110,6 +110,9 @@ class ControlPanel:
     def _set_status(self, message: str, color_key: str, refresh: bool = True):
         StatusBar.instance.text.value = message
         StatusBar.instance.text.color = self.theme.get(color_key)
+        if hasattr(self, 'compact_status_text') and self.compact_status_text:
+            self.compact_status_text.value = message
+            self.compact_status_text.color = self.theme.get(color_key)
         if refresh:
             self.page.update()
 
@@ -126,7 +129,7 @@ class ControlPanel:
             bgcolor=self.theme.get(color_key),
             on_click=lambda e: self.page.run_task(on_click, e),
             ink=True,
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
         )
 
     def _create_button(self, text, icon, on_click, color_key):
@@ -163,13 +166,13 @@ class ControlPanel:
             bgcolor=self.theme.get("button_nav"),
             on_click=lambda e: self.page.run_task(on_click, e),
             ink=True,
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
         )
 
     async def _on_metronome_click(self, e):
         try:
             is_on = playback.toggle_metronome()
-            self.metronome_btn.set_state(is_on)
+            self.set_metronome_state(is_on)
             self._set_status(
                 i18n.get("status_metronome", i18n.get("status_metronome_on") if is_on else i18n.get("status_metronome_off")),
                 "button_metro_on" if is_on else "text_secondary",
@@ -408,3 +411,157 @@ class ControlPanel:
             self.page.update()
         except Exception as e:
             print(f"[ERROR] _update_scan_ui: {e}")
+
+    def set_metronome_state(self, is_on: bool):
+        """Establece el estado del metrónomo en todos los controles"""
+        self.metronome_btn.set_state(is_on)
+        if hasattr(self, 'compact_metronome_btn') and self.compact_metronome_btn:
+            self.compact_metronome_btn.bgcolor = self.theme.get("button_metro_on" if is_on else "button_metro")
+
+    def update_theme_colors(self):
+        """Actualiza los colores de todos los botones según el tema actual"""
+        self.play_btn.bgcolor = self.theme.get("button_play")
+        self.stop_btn.bgcolor = self.theme.get("button_stop")
+        self.prev_btn.bgcolor = self.theme.get("button_nav")
+        self.next_btn.bgcolor = self.theme.get("button_nav")
+        self.scan_btn.bgcolor = self.theme.get("button_scan")
+        self.beat_indicator.container.bgcolor = self.theme.get("bg_card")
+        
+        # Actualizar componentes compactos si están inicializados
+        if hasattr(self, 'compact_play_btn') and self.compact_play_btn:
+            self.compact_play_btn.bgcolor = self.theme.get("button_play")
+            self.compact_stop_btn.bgcolor = self.theme.get("button_stop")
+            self.compact_prev_btn.bgcolor = self.theme.get("button_nav")
+            self.compact_next_btn.bgcolor = self.theme.get("button_nav")
+            self.compact_scan_btn.bgcolor = self.theme.get("button_scan")
+            self.compact_metronome_btn.bgcolor = self.theme.get("button_metro_on" if state.metronome_on else "button_metro")
+            self.compact_status_text.color = StatusBar.instance.text.color
+            self.compact_container.bgcolor = self.theme.get("bg_secondary")
+            self.compact_container.border = ft.border.Border.all(1, self.theme.get("border") + "40")
+
+    def get_compact_container(self) -> ft.Container:
+        """Devuelve el contenedor de controles compactos, creándolo si no existe"""
+        if not hasattr(self, 'compact_container'):
+            self._create_compact_components()
+        return self.compact_container
+
+    def _create_compact_components(self):
+        """Crea los componentes compactos optimizados para modo lateral/compacto"""
+        self.compact_play_btn = ft.Container(
+            content=icon("play_txt", size=20, color=ft.Colors.WHITE),
+            width=70,
+            height=45,
+            border_radius=8,
+            bgcolor=self.theme.get("button_play"),
+            on_click=self.play_btn.on_click,
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        self.compact_stop_btn = ft.Container(
+            content=icon("hand-stop", size=20, color=ft.Colors.WHITE),
+            width=70,
+            height=45,
+            border_radius=8,
+            bgcolor=self.theme.get("button_stop"),
+            on_click=self.stop_btn.on_click,
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        self.compact_prev_btn = ft.Container(
+            content=ft.Icon(ft.Icons.SKIP_PREVIOUS_ROUNDED, size=20, color=ft.Colors.WHITE),
+            width=50,
+            height=45,
+            border_radius=8,
+            bgcolor=self.theme.get("button_nav"),
+            on_click=self.prev_btn.on_click,
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        self.compact_next_btn = ft.Container(
+            content=ft.Icon(ft.Icons.SKIP_NEXT_ROUNDED, size=20, color=ft.Colors.WHITE),
+            width=50,
+            height=45,
+            border_radius=8,
+            bgcolor=self.theme.get("button_nav"),
+            on_click=self.next_btn.on_click,
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        self.compact_scan_btn = ft.Container(
+            content=icon("search2", size=20, color=ft.Colors.WHITE),
+            width=50,
+            height=45,
+            border_radius=8,
+            bgcolor=self.theme.get("button_scan"),
+            on_click=self.scan_btn.on_click,
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        self.compact_metronome_btn = ft.Container(
+            content=ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=4,
+                controls=[
+                    icon("metronome3", size=16, color=ft.Colors.WHITE),
+                    ft.Text("CLICK", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                ]
+            ),
+            width=80,
+            height=45,
+            border_radius=8,
+            bgcolor=self.theme.get("button_metro_on" if state.metronome_on else "button_metro"),
+            on_click=self.metronome_btn.button.on_click,
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        
+        self.compact_status_text = ft.Text(
+            StatusBar.instance.text.value if hasattr(StatusBar, 'instance') else "",
+            size=11,
+            color=self.theme.get("accent"),
+            text_align=ft.TextAlign.CENTER,
+            weight=ft.FontWeight.W_500,
+            overflow=ft.TextOverflow.ELLIPSIS,
+            max_lines=1,
+            width=300,
+        )
+        
+        self.compact_container = ft.Container(
+            content=ft.Column(
+                spacing=8,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    # Row 1: Metrónomo + Tempo + Scan
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=8,
+                        controls=[
+                            self.compact_metronome_btn,
+                            ft.Container(
+                                content=self.tempo_display.text,
+                                alignment=ft.Alignment.CENTER,
+                                padding=ft.padding.Padding(left=10, right=10, top=0, bottom=0),
+                            ),
+                            self.compact_scan_btn,
+                        ]
+                    ),
+                    # Row 2: Play/Stop/Nav
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=8,
+                        controls=[
+                            self.compact_prev_btn,
+                            self.compact_play_btn,
+                            self.compact_stop_btn,
+                            self.compact_next_btn,
+                        ]
+                    ),
+                    # Row 3: Status
+                    self.compact_status_text,
+                ]
+            ),
+            padding=ft.padding.Padding(left=12, right=12, top=12, bottom=12),
+            bgcolor=self.theme.get("bg_secondary"),
+            border_radius=12,
+            border=ft.border.Border.all(1, self.theme.get("border") + "40"),
+        )

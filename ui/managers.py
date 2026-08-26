@@ -100,7 +100,7 @@ class OSCCallbackManager:
 
     def _update_metronome_ui_wrapper(self):
         try:
-            self.control_panel.metronome_btn.set_state(state.metronome_on)
+            self.control_panel.set_metronome_state(state.metronome_on)
             SafeUIUpdater.update_sync(self.page)
         except Exception as e:
             if "__uid" not in str(e):
@@ -289,16 +289,13 @@ class ThemeChangeHandler:
             self.theme.get,
             web_port=FLASK_PORT,
             set_timer=self.set_timer,
+            on_mode_change=self.page.app_builder.apply_view_mode if hasattr(self.page, 'app_builder') else None,
+            view_mode=getattr(state, 'view_mode', 'fullscreen'),
         )
         self.page.controls[0].content.controls[0] = new_header
 
     def _update_control_panel_colors(self):
-        self.control_panel.play_btn.bgcolor = self.theme.get("button_play")
-        self.control_panel.stop_btn.bgcolor = self.theme.get("button_stop")
-        self.control_panel.prev_btn.bgcolor = self.theme.get("button_nav")
-        self.control_panel.next_btn.bgcolor = self.theme.get("button_nav")
-        self.control_panel.scan_btn.bgcolor = self.theme.get("button_scan")
-        self.control_panel.beat_indicator.container.bgcolor = self.theme.get("bg_card")
+        self.control_panel.update_theme_colors()
 
     def _update_other_components(self):
         self.control_panel.tempo_display.text.color = self.theme.get("text_primary")

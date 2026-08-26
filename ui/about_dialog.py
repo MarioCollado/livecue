@@ -8,8 +8,7 @@ from core.i18n import i18n
 def show_about_dialog(page: ft.Page, theme_get_color):
     
     def close_dialog(e):
-        dialog.open = False
-        page.update()
+        page.pop_dialog()
         
     # --- Componentes Reutilizables ---
 
@@ -25,7 +24,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
             padding=12,
             border_radius=10,
             bgcolor=theme_get_color("bg_card"),
-            border=ft.border.all(1, theme_get_color("border"))
+            border=ft.border.Border.all(1, theme_get_color("border"))
         )
         
     def _info_row(label, value, is_link=False, url=None):
@@ -49,7 +48,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                 on_click=lambda e: page.launch_url(url),
                 ink=True,
                 border_radius=4,
-                padding=ft.padding.symmetric(horizontal=4, vertical=2)
+                padding=ft.padding.Padding(left=4, right=4, top=2, bottom=2)
             )
         return content
 
@@ -64,7 +63,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                     width=60, height=60, border_radius=30,
                     bgcolor=theme_get_color("accent"),
                     shadow=ft.BoxShadow(blur_radius=10, color=theme_get_color("accent") + "40"),
-                    alignment=ft.alignment.center
+                    alignment=ft.Alignment.CENTER
                 ),
                 ft.Text(
                     i18n.get("app_name"),
@@ -87,13 +86,13 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                         color=theme_get_color("button_text"),
                         text_align=ft.TextAlign.CENTER
                     ),
-                    padding=ft.padding.symmetric(horizontal=8, vertical=1),
-                    margin=ft.margin.only(top=2),
-                    alignment=ft.alignment.center
+                    padding=ft.padding.Padding(left=8, right=8, top=1, bottom=1),
+                    margin=ft.margin.Margin(top=2),
+                    alignment=ft.Alignment.CENTER
                 )
             ]
         ),
-        padding=ft.padding.only(bottom=12)
+        padding=ft.padding.Padding(left=0, right=0, top=0, bottom=12)
     )
 
     # --- DONACIÓN ---
@@ -132,7 +131,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                                 bgcolor="#0070ba",
                                 color=ft.Colors.WHITE,
                                 shape=ft.RoundedRectangleBorder(radius=8),
-                                padding=ft.padding.symmetric(horizontal=14, vertical=8)
+                                padding=ft.padding.Padding(left=14, right=14, top=8, bottom=8)
                             ),
                             on_click=lambda e: page.launch_url("https://paypal.me/mariocollado1")
                         ),
@@ -149,7 +148,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                                 bgcolor="#ff5e5b",
                                 color=ft.Colors.WHITE,
                                 shape=ft.RoundedRectangleBorder(radius=8),
-                                padding=ft.padding.symmetric(horizontal=14, vertical=8)
+                                padding=ft.padding.Padding(left=14, right=14, top=8, bottom=8)
                             ),
                             on_click=lambda e: page.launch_url("https://buymeacoffee.com/mcollado")
                         )
@@ -160,8 +159,8 @@ def show_about_dialog(page: ft.Page, theme_get_color):
         padding=14,
         border_radius=12,
         bgcolor=ft.Colors.with_opacity(0.14, ft.Colors.AMBER_700),
-        border=ft.border.all(2, ft.Colors.with_opacity(0.25, ft.Colors.AMBER_300)),
-        margin=ft.margin.only(bottom=10)
+        border=ft.border.Border.all(2, ft.Colors.with_opacity(0.25, ft.Colors.AMBER_300)),
+        margin=ft.margin.Margin(bottom=10)
     )
 
     # --- DEV INFO ---
@@ -213,7 +212,7 @@ def show_about_dialog(page: ft.Page, theme_get_color):
             text_align=ft.TextAlign.CENTER,
             italic=True
         ),
-        padding=ft.padding.symmetric(vertical=6)
+        padding=ft.padding.Padding(left=0, right=0, top=6, bottom=6)
     )
 
     # --- DIALOG ---
@@ -261,10 +260,25 @@ def show_about_dialog(page: ft.Page, theme_get_color):
                         )
                     ]
                 ),
-                padding=ft.padding.only(bottom=6)
+                padding=ft.padding.Padding(left=0, right=0, top=0, bottom=6)
             )
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER
     )
     
-    page.open(dialog)
+    print("[UI] Opening about dialog")
+    try:
+        if hasattr(page, 'window'):
+            wnd = page.window
+            if hasattr(wnd, 'bring_to_front'):
+                try:
+                    wnd.bring_to_front()
+                except Exception:
+                    pass
+            try:
+                wnd.minimized = False
+            except Exception:
+                pass
+    except Exception:
+        pass
+    page.show_dialog(dialog)
