@@ -56,10 +56,9 @@ def show_qr_dialog(page: ft.Page, get_color, ip_address: str, port: int):
                         padding=10,
                         border_radius=10,
                         content=ft.Image(
-                            src_base64=qr_base64,
+                            src=f"data:image/png;base64,{qr_base64}",
                             width=250,
                             height=250,
-                            fit=ft.ImageFit.CONTAIN
                         )
                     ),
                     ft.Text(
@@ -79,15 +78,12 @@ def show_qr_dialog(page: ft.Page, get_color, ip_address: str, port: int):
                 style=ft.ButtonStyle(color=get_color("accent"))
             )
         ],
-        actions_padding=ft.padding.only(right=10, bottom=10),
+        actions_padding=ft.padding.Padding(left=0, right=10, top=0, bottom=10),
         shape=ft.RoundedRectangleBorder(radius=12),
         bgcolor=get_color("bg_card"),
     )
     
     def close_dialog():
-        dialog.open = False
-        page.update()
+        page.pop_dialog()
 
-    page.overlay.append(dialog)
-    dialog.open = True
-    page.update()
+    page.show_dialog(dialog)

@@ -120,11 +120,33 @@ def get_local_ip() -> str:
     except Exception:
         pass
 
+    # Fallback: intenta determinar la IP de salida usando candidatos de gateway
+    # locales. Funciona incluso si el router NO tiene acceso a internet.
+    _gateway_candidates = [
+        # Gateways privados más comunes en redes locales (LAN-only)
+        ("192.168.1.1", 80),
+        ("192.168.0.1", 80),
+        ("10.0.0.1", 80),
+        ("172.16.0.1", 80),
+        # Fallback externo (sólo si hay internet)
+        ("8.8.8.8", 80),
+    ]
+    for _gw_host, _gw_port in _gateway_candidates:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.5)
+            s.connect((_gw_host, _gw_port))
+            ip = s.getsockname()[0]
+            s.close()
+            if _is_valid_ip(ip):
+                return ip
+        except Exception:
+            pass
+
+    # Último recurso: resolución por hostname
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
         if _is_valid_ip(ip):
             return ip
     except Exception:

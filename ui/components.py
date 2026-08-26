@@ -24,13 +24,13 @@ class BeatIndicator:
         self.container = ft.Container(
             width=100, height=60, border_radius=12,
             bgcolor=get_color_fn("bg_card"),
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
             content=ft.Row(
                 spacing=16,
                 alignment=ft.MainAxisAlignment.CENTER,
                 controls=[self.circle_2, self.circle_1]
             ),
-            padding=ft.padding.symmetric(horizontal=12, vertical=12)
+            padding=ft.padding.Padding(left=12, right=12, top=12, bottom=12)
         )
 
     @staticmethod
@@ -134,7 +134,7 @@ class MetronomeButton:
         self.watermark_icon = icon("metronome3", size=80, color=ft.Colors.WHITE24)
         self.watermark = ft.Container(
             content=self.watermark_icon,
-            alignment=ft.alignment.center
+            alignment=ft.Alignment.CENTER
         )
         
         # Stack: imagen de fondo + texto encima
@@ -144,7 +144,7 @@ class MetronomeButton:
                     self.watermark,  # Fondo
                     ft.Container(
                         content=self.text,
-                        alignment=ft.alignment.center
+                        alignment=ft.Alignment.CENTER
                     )  # Texto encima
                 ]
             ),
@@ -154,7 +154,7 @@ class MetronomeButton:
             bgcolor=get_color_fn("button_metro"),
             on_click=on_click_fn,
             ink=True,
-            alignment=ft.alignment.center
+            alignment=ft.Alignment.CENTER
         )
     
     def set_state(self, is_on: bool):

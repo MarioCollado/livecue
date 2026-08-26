@@ -7,9 +7,8 @@ from core.i18n import i18n
 
 def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
     
-    async def close_dialog(e=None):
-        dlg.open = False
-        page.update()
+    def close_dialog(e=None):
+        page.pop_dialog()
         if on_accept_callback and callable(on_accept_callback):
             if hasattr(page, 'run_task'):
                 page.run_task(on_accept_callback)
@@ -37,14 +36,14 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                     ),
                     ft.Container(
                         content=ft.Column(spacing=4, controls=content_controls),
-                        padding=ft.padding.only(left=24)
+                        padding=ft.padding.Padding(left=24, right=0, top=0, bottom=0)
                     )
                 ]
             ),
             padding=12,
             border_radius=8,
             bgcolor=get_color("bg_card"),
-            border=ft.border.all(1, get_color("border"))
+            border=ft.border.Border.all(1, get_color("border"))
         )
 
     def _bullet_point(text):
@@ -55,7 +54,7 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                 ft.Container(
                     width=4, height=4, border_radius=2,
                     bgcolor=get_color("text_secondary"),
-                    margin=ft.margin.only(top=7)
+                        margin=ft.margin.Margin(top=7)
                 ),
                 ft.Text(
                     text,
@@ -93,12 +92,12 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                         color=get_color("button_text"),
                         text_align=ft.TextAlign.CENTER
                     ),
-                    padding=ft.padding.symmetric(horizontal=8, vertical=2),
-                    alignment=ft.alignment.center
+                        padding=ft.padding.Padding(left=8, right=8, top=2, bottom=2),
+                    alignment=ft.Alignment.CENTER
                 )
             ]
         ),
-        padding=ft.padding.only(bottom=10)
+        padding=ft.padding.Padding(left=0, right=0, top=0, bottom=10)
     )
 
     warning_card = ft.Container(
@@ -123,7 +122,7 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
         padding=12,
         border_radius=8,
         bgcolor=ft.Colors.ORANGE_400 + "15",
-        border=ft.border.all(1, ft.Colors.ORANGE_400 + "30")
+        border=ft.border.Border.all(1, ft.Colors.ORANGE_400 + "30")
     )
 
     features_list = [
@@ -140,7 +139,7 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
     )
 
     license_section = ft.Container(
-        alignment=ft.alignment.center,
+        alignment=ft.Alignment.CENTER,
         content=ft.Column(
             spacing=2,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -161,7 +160,7 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                 )
             ]
         ),
-        padding=ft.padding.only(top=10)
+        padding=ft.padding.Padding(left=0, right=0, top=10, bottom=0)
     )
 
     # --- Diálogo ---
@@ -203,17 +202,32 @@ def show_welcome_dialog(page: ft.Page, get_color, on_accept_callback=None):
                             style=ft.ButtonStyle(
                                 bgcolor=get_color("accent"),
                                 color=get_color("button_text"),
-                                padding=ft.padding.symmetric(horizontal=32, vertical=18),
+                                padding=ft.padding.Padding(left=32, right=32, top=18, bottom=18),
                                 shape=ft.RoundedRectangleBorder(radius=12)
                             ),
-                            on_click=lambda e: page.run_task(close_dialog, e)
+                            on_click=close_dialog
                         )
                     ]
                 ),
-                padding=ft.padding.only(bottom=16)
+                padding=ft.padding.Padding(left=0, right=0, top=0, bottom=16)
             )
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER
     )
     
-    page.open(dlg)
+    print("[UI] Opening welcome dialog")
+    try:
+        if hasattr(page, 'window'):
+            wnd = page.window
+            if hasattr(wnd, 'bring_to_front'):
+                try:
+                    wnd.bring_to_front()
+                except Exception:
+                    pass
+            try:
+                wnd.minimized = False
+            except Exception:
+                pass
+    except Exception:
+        pass
+    page.show_dialog(dlg)

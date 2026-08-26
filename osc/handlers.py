@@ -22,6 +22,7 @@ class OSCHandlers:
         self._clip_timeout = 1.0  # Timeout de 1 segundo
         self._last_end_processed_idx = -1  # Para evitar loops infinitos al finalizar track
         self._triggered_click_beats: set = set()  # Beats de click ya disparados en esta sesión
+        self._ignore_metronome_update: bool = False  # Flag para preservar click al hacer stop
         log_debug("OSCHandlers inicializado", module="OSC")
     
     def handle_cue_points(self, address, *args):
@@ -144,14 +145,16 @@ class OSCHandlers:
                     )
                     current_track = None
 
-            elif name_norm in ("CLICK ON", "CLICK OFF"):
-                # Evento de automatización del metrónomo — funciona dentro O fuera de tracks
-                enable = (name_norm == "CLICK ON")
-                click_events.append(ClickEvent(beat=loc.beat, enable=enable))
-                log_debug(
-                    f"🎵 Click automation: {'ON' if enable else 'OFF'} @ beat {loc.beat}",
-                    module="OSC"
-                )
+            # --- CLICK ON/OFF AUTOMATION (DESACTIVADO TEMPORALMENTE) ---
+            # Plugin externo gestiona el metrónomo; estos locators se ignoran por ahora.
+            # elif name_norm in ("CLICK ON", "CLICK OFF"):
+            #     # Evento de automatización del metrónomo — funciona dentro O fuera de tracks
+            #     enable = (name_norm == "CLICK ON")
+            #     click_events.append(ClickEvent(beat=loc.beat, enable=enable))
+            #     log_debug(
+            #         f"🎵 Click automation: {'ON' if enable else 'OFF'} @ beat {loc.beat}",
+            #         module="OSC"
+            #     )
 
             elif current_track:
                 # Cualquier otro locator dentro de un track = sección
@@ -191,6 +194,14 @@ class OSCHandlers:
         """Maneja estado del metrónomo"""
         if args:
             with self._lock:
+                # Si estamos en modo preservación de click (tras un stop),
+                # ignorar el update de Ableton para no perder el estado del click.
+                if self._ignore_metronome_update:
+                    log_debug(
+                        "Ignorando update de metrónomo de Ableton (preservando estado)",
+                        module="OSC"
+                    )
+                    return
                 state.metronome_on = bool(int(args[0]))
             log_info(f"🎵 Metrónomo: {'ON' if state.metronome_on else 'OFF'}", module="OSC")
             self._safe_ui_update('update_metronome_ui')
@@ -218,10 +229,10 @@ class OSCHandlers:
             if state.is_playing:
                 current_track = state.get_current_track()
                 if current_track and current_track.end > 0:
-                    # Detectar con un pequeño margen si pasamos el final
-                    if current_exact_beat >= current_track.end and current_exact_beat < current_track.end + 1.0:
-                        # Asegurarnos de no dispararlo en repetición para el mismo play
-                        if self._last_end_processed_idx != state.current_index:
+                    # Detectar de forma fiable si pasamos el final (eliminando límite superior para evitar fallos por lag)
+                    if current_exact_beat >= current_track.end:
+                        if not getattr(current_track, 'end_processed', False):
+                            current_track.end_processed = True
                             self._last_end_processed_idx = state.current_index
                             
                             from core.playback import playback
@@ -236,50 +247,69 @@ class OSCHandlers:
                                     f"saltando a beat {loop_start:.1f} (compás de {beats_per_bar} beats)",
                                     module="OSC"
                                 )
-                                def do_loop(beat):
+                                def do_loop(beat, t_obj):
                                     from osc.client import send_message as _send
                                     import time as _time
                                     _send("/live/song/set/current_song_time", [beat])
                                     _time.sleep(0.05)
                                     _send("/live/song/continue_playing", [])
-                                threading.Thread(target=do_loop, args=(loop_start,), daemon=True).start()
-                                # Resetear para que detecte el próximo fin de compás
+                                    # Resetear flag de procesamiento del final tras saltar
+                                    t_obj.end_processed = False
+                                
+                                threading.Thread(target=do_loop, args=(loop_start, current_track), daemon=True).start()
                                 self._last_end_processed_idx = -1
                             elif getattr(current_track, 'auto_continue', False):
                                 log_info(f"⏭ Auto-continue: pasando a la siguiente canción.", module="OSC")
                                 threading.Thread(target=playback.next_track, daemon=True).start()
                             else:
                                 log_info(f"⏹ Fin de track '{current_track.title}'. Deteniendo.", module="OSC")
+                                # --- REACTIVACIÓN METRÓNOMO EN END_TRACK (DESACTIVADO TEMPORALMENTE) ---
+                                # Plugin externo gestiona el metrónomo; no se reactiva automáticamente.
+                                # if not state.metronome_on:
+                                #     log_info(
+                                #         "🎵 END_TRACK: reactivando metrónomo para el próximo track",
+                                #         module="OSC"
+                                #     )
+                                #     def _reactivate_and_stop():
+                                #         try:
+                                #             send_message("/live/song/set/metronome", [1])
+                                #             with state._lock:
+                                #                 state.metronome_on = True
+                                #         except Exception as e:
+                                #             log_error(f"Error reactivando metrónomo en END_TRACK: {e}", module="OSC", exc=e)
+                                #         from core.playback import playback as _pb
+                                #         _pb.stop()
+                                #     threading.Thread(target=_reactivate_and_stop, daemon=True).start()
+                                # else:
+                                #     threading.Thread(target=playback.stop, daemon=True).start()
                                 threading.Thread(target=playback.stop, daemon=True).start()
-            # ---- AUTOMATIZACIÓN CLICK ON/OFF ----
-            # Comprobar si el beat actual activa algún evento de click
-            if state.is_playing:
-                # Calcular ventana de tolerancia dinámicamente basada en tempo
-                if state.current_tempo > 0:
-                    beat_duration_seconds = 60 / state.current_tempo
-                    tolerance_seconds = 0.1  # 100ms ventana independiente del tempo
-                    tolerance_beats = tolerance_seconds / beat_duration_seconds
-                else:
-                    tolerance_beats = 0.3  # Default si tempo no disponible
-
-                for evt in state.click_events:
-                    # Ventana dinámica para evitar capturar eventos no deseados a BPM altos
-                    if abs(current_exact_beat - evt.beat) <= tolerance_beats and evt.beat not in self._triggered_click_beats:
-                        self._triggered_click_beats.add(evt.beat)
-                        target_value = 1 if evt.enable else 0
-                        label = "ON" if evt.enable else "OFF"
-                        log_info(f"🎵 Click automation: CLICK {label} @ beat {evt.beat:.1f} (ventana: ±{tolerance_beats:.2f})", module="OSC")
-
-                        def _fire_click(val):
-                            try:
-                                send_message("/live/song/set/metronome", [val])
-                                with state._lock:
-                                    state.metronome_on = bool(val)
-                            except Exception as e:
-                                log_error(f"Click automation failed: {e}", module="OSC", exc=e)
-
-                        threading.Thread(target=_fire_click, args=(target_value,), daemon=True).start()
-                        self._safe_ui_update('update_metronome_ui')
+            # ---- AUTOMATIZACIÓN CLICK ON/OFF (DESACTIVADO TEMPORALMENTE) ----
+            # Plugin externo gestiona el metrónomo; el motor de automatización no envía nada.
+            # if state.is_playing:
+            #     if state.current_tempo > 0:
+            #         beat_duration_seconds = 60 / state.current_tempo
+            #         tolerance_seconds = 0.1
+            #         tolerance_beats = tolerance_seconds / beat_duration_seconds
+            #     else:
+            #         tolerance_beats = 0.3
+            #
+            #     for evt in state.click_events:
+            #         if abs(current_exact_beat - evt.beat) <= tolerance_beats and evt.beat not in self._triggered_click_beats:
+            #             self._triggered_click_beats.add(evt.beat)
+            #             target_value = 1 if evt.enable else 0
+            #             label = "ON" if evt.enable else "OFF"
+            #             log_info(f"🎵 Click automation: CLICK {label} @ beat {evt.beat:.1f} (ventana: ±{tolerance_beats:.2f})", module="OSC")
+            #
+            #             def _fire_click(val):
+            #                 try:
+            #                     send_message("/live/song/set/metronome", [val])
+            #                     with state._lock:
+            #                         state.metronome_on = bool(val)
+            #                 except Exception as e:
+            #                     log_error(f"Click automation failed: {e}", module="OSC", exc=e)
+            #
+            #             threading.Thread(target=_fire_click, args=(target_value,), daemon=True).start()
+            #             self._safe_ui_update('update_metronome_ui')
 
         if beat_changed and current_beat % 4 == 0:
             log_debug(f"Beat: {current_beat}", module="OSC")

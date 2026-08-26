@@ -40,5 +40,4 @@ def icon(name, size=16, color=None):
         width=size,
         height=size,
         color=color,
-        fit=ft.ImageFit.CONTAIN,
     )

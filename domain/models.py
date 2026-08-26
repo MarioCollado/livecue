@@ -65,6 +65,7 @@ class Track:
     expanded: bool = False
     auto_continue: bool = False
     loop_track: bool = False
+    end_processed: bool = False
 
     def contains_beat(self, beat: float) -> bool:
         return self.start <= beat <= self.end

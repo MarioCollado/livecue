@@ -101,10 +101,10 @@ class TrackItemBuilder:
                     )
                 ]
             ),
-            padding=ft.padding.symmetric(horizontal=20, vertical=16),
+            padding=ft.padding.Padding(left=20, right=20, top=16, bottom=16),
             border_radius=12,
             bgcolor=self.theme.get("bg_card"),
-            border=ft.border.all(2, self.theme.get("accent")) if is_selected else None,
+            border=ft.border.Border.all(2, self.theme.get("accent")) if is_selected else None,
             on_click=on_click,
         )
     
@@ -121,7 +121,7 @@ class TrackItemBuilder:
             height=36,
             border_radius=18,
             bgcolor=self.theme.get("accent") if is_selected else self.theme.get("bg_secondary"),
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
         )
     
     def _create_track_info(self, track, is_selected: bool, has_sections: bool) -> ft.Column:
@@ -134,14 +134,10 @@ class TrackItemBuilder:
                     track.title,
                     size=15,
                     weight=ft.FontWeight.W_600 if is_selected else ft.FontWeight.W_500,
-                    color=self.theme.get("text_primary")
+                    color=self.theme.get("text_primary"),
+                    overflow=ft.TextOverflow.ELLIPSIS,
+                    max_lines=1
                 ),
-                # ft.Text(
-                #     i18n.get("track_sections_count", len(track.sections)),
-                #     size=11,
-                #     color=self.theme.get("text_secondary"),
-                #     visible=has_sections
-                # )
             ]
         )
     
@@ -158,7 +154,7 @@ class TrackItemBuilder:
             on_click=on_toggle_auto_continue,
             style=ft.ButtonStyle(
                 shape=ft.CircleBorder(),
-                padding=ft.padding.all(6),
+                padding=ft.padding.Padding(left=6, right=6, top=6, bottom=6),
             )
         )
 
@@ -185,10 +181,10 @@ class TrackItemBuilder:
                     ),
                 ],
             ),
-            padding=ft.padding.symmetric(horizontal=8, vertical=4),
+            padding=ft.padding.Padding(left=8, right=8, top=4, bottom=4),
             border_radius=20,
             bgcolor=EMERGENCY_RED if loop_active else self.theme.get("bg_secondary"),
-            border=ft.border.all(1.5, EMERGENCY_RED if loop_active else inactive_border),
+            border=ft.border.Border.all(1.5, EMERGENCY_RED if loop_active else inactive_border),
             shadow=ft.BoxShadow(
                 blur_radius=10,
                 spread_radius=1,
@@ -253,12 +249,13 @@ class TrackItemBuilder:
                            color=self.theme.get("accent"), opacity=0.7),
                     ft.Container(width=8),
                     ft.Text(section.name, size=13, weight=ft.FontWeight.W_500, 
-                           expand=True, color=self.theme.get("text_primary"))
+                           expand=True, color=self.theme.get("text_primary"),
+                           overflow=ft.TextOverflow.ELLIPSIS, max_lines=1)
                 ],
                 spacing=0,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
-            padding=ft.padding.symmetric(horizontal=16, vertical=10),
+            padding=ft.padding.Padding(left=16, right=16, top=10, bottom=10),
             border_radius=8,
             bgcolor=self.theme.get("bg_secondary"),
             on_click=on_click,
@@ -279,7 +276,7 @@ class TrackItemBuilder:
                 ],
                 spacing=0
             ),
-            padding=ft.padding.symmetric(horizontal=16, vertical=12),
+            padding=ft.padding.Padding(left=16, right=16, top=12, bottom=12),
             width=320,
             border_radius=10,
             bgcolor=self.theme.get("accent"),
@@ -356,6 +353,7 @@ class TrackListView:
         # Threading
         self._update_lock = threading.Lock()
         
+        self.last_selected_index = -1
         TrackListView.instance = self
 
     def _track_callbacks(self, track_index: int):
@@ -412,9 +410,14 @@ class TrackListView:
             # Si el número de tracks no cambió Y no es forzado, usar update_single_track
             if current_count == new_count and current_count > 0 and not force_refresh:
                 print(f"[UI] Número de tracks sin cambios ({current_count}), usando update selectivo")
+                # Desmarcar track anteriormente seleccionado si ha cambiado
+                if 0 <= self.last_selected_index < new_count and self.last_selected_index != state.current_index:
+                    await self.update_single_track(self.last_selected_index)
+                
                 # Solo actualizar el track actual si existe
                 if 0 <= state.current_index < new_count:
                     await self.update_single_track(state.current_index)
+                    self.last_selected_index = state.current_index
                 return
             
             if force_refresh:
@@ -427,6 +430,10 @@ class TrackListView:
                 return
             
             self._replace_items(new_items, len(tracks), force=force_refresh)
+            
+            # Sincronizar vista compacta
+            if hasattr(self.page, 'app_builder') and self.page.app_builder:
+                self.page.app_builder.update_compact_view()
             
         except AssertionError as e:
             print(f"[UI] AssertionError en update: {e}")
@@ -465,6 +472,10 @@ class TrackListView:
             # Actualizar secciones con animación
             await self._animate_sections(track_column.controls[1], track_index, 
                                         track, is_expanded, has_sections)
+            
+            # Sincronizar vista compacta
+            if hasattr(self.page, 'app_builder') and self.page.app_builder:
+                self.page.app_builder.update_compact_view()
             
         except Exception as e:
             print(f"[ERROR] update_single_track({track_index}): {e}")
@@ -533,6 +544,7 @@ class TrackListView:
             # (antes se llamaba page.update() tras el clear, causando un parpadeo)
             self.column.controls.clear()
             self.column.controls = new_items
+            self.last_selected_index = state.current_index
             self.page.update()
             print(f"[UI] ✓ Lista actualizada: {track_count} tracks (anterior: {old_count})")
         except Exception as e:
@@ -586,7 +598,7 @@ class TrackListView:
                 track_index, track, self.page, self._on_section_click
             )
             sections_container.opacity = 0.0  # Empezar invisible
-            sections_container.padding = ft.padding.only(top=0)
+            sections_container.padding = ft.padding.Padding(left=0, right=0, top=0, bottom=0)
             self.page.update()
             
             # Pequeño delay para suavizar el inicio
@@ -596,7 +608,7 @@ class TrackListView:
             sections_container.animate_size = ft.Animation(250, ft.AnimationCurve.EASE_OUT)
             sections_container.animate_opacity = ft.Animation(300, ft.AnimationCurve.EASE_IN)
             sections_container.opacity = 1.0
-            sections_container.padding = ft.padding.only(top=12)
+            sections_container.padding = ft.padding.Padding(left=0, right=0, top=12, bottom=0)
             self.page.update()
             
         else:
@@ -604,7 +616,7 @@ class TrackListView:
             sections_container.animate_opacity = ft.Animation(200, ft.AnimationCurve.EASE_OUT)
             sections_container.animate_size = ft.Animation(250, ft.AnimationCurve.EASE_IN)
             sections_container.opacity = 0.0
-            sections_container.padding = ft.padding.only(top=0)
+            sections_container.padding = ft.padding.Padding(left=0, right=0, top=0, bottom=0)
             self.page.update()
             
             # Esperar a que termine la animación antes de limpiar contenido
@@ -628,8 +640,8 @@ class TrackListView:
         # Secciones con animaciones modernas
         sections_container = ft.Container(
             content=self.item_builder.create_sections_content(track_index, track, self.page, self._on_section_click) 
-                    if (is_expanded and has_sections) 
-                    else ft.Column(spacing=0, controls=[]),
+                if (is_expanded and has_sections) 
+                else ft.Column(spacing=0, controls=[]),
             animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_IN_OUT),
             animate_size=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
             opacity=1.0 if is_expanded else 0.0,
